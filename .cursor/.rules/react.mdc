@@ -1,0 +1,371 @@
+---
+alwaysApply: true
+---
+You are an expert full-stack engineer.  
+Build a complete **Touchscreen PWA Kiosk Web Application** for a company named **Prithvi**, with a footer text **“Powered by XTOWN”**.
+
+The system runs on:
+- A **React JS PWA** on **Android** (32-inch touchscreen in landscape)
+- An **Express backend (Node.js)** on the same LAN
+- A **MySQL database**
+- A **LAN-connected Impact 260IV ESC/POS thermal printer**
+
+Printing must be done **from the backend**, not the frontend.  
+Backend will send ESC/POS commands directly to the printer’s IP/Port (9100).
+
+-------------------------------------------------------------------------------
+# TECHNOLOGY / STRUCTURE
+-------------------------------------------------------------------------------
+
+Frontend:
+- React (JavaScript, NO TypeScript)
+- Tailwind CSS
+- React Router
+- react-icons
+- Installable PWA (manifest.json + service worker)
+- 32-inch touchscreen UI with large components
+
+Backend:
+- Node.js + Express
+- Sequelize ORM
+- MySQL database
+- Multer for file uploads (product images)
+- Printing over LAN using either:
+  - node-escpos library, OR
+  - raw TCP sockets (net.Socket) with ESC/POS bytes.
+
+Monorepo:
+- /server → Express backend + Sequelize + ESC/POS printing
+- /client → React PWA
+
+Backend must serve the built React app in production.
+
+-------------------------------------------------------------------------------
+# ROLES & LOGIN (SIMPLE AUTH)
+-------------------------------------------------------------------------------
+
+Two roles:
+
+1. **Admin**
+   - Access to dashboard, product mgmt, unit mgmt, logs.
+
+2. **User (Kiosk Operator)**
+   - Logs in → Select Unit → Select Products → Select Dates → Payment → Printing.
+
+Authentication:
+- Table `users`: id, username, password_hash, role ('admin' | 'user')
+- Simple `/api/auth/login` sets session via express-session.
+- `/api/auth/logout` clears session.
+- No JWT, no tokens needed (internal LAN usage).
+
+-------------------------------------------------------------------------------
+# UNITS (WITH PRINTER CONFIG)
+-------------------------------------------------------------------------------
+
+MySQL table `units`:
+- id
+- name (e.g. “Unit 1”)
+- code (e.g. “UNIT1”)
+- printer_ip  e.g. “192.168.1.120”
+- printer_port e.g. 9100
+- is_active (boolean)
+- timestamps
+
+Admin Panel must support:
+- Add/Edit/Delete Unit
+- Store printer_ip and printer_port
+- A “Test Print” button that triggers backend → ESC/POS → printer.
+
+When a user logs in, they must pick a Unit first.  
+All orders & bills belong to that Unit and use that Unit’s printer.
+
+-------------------------------------------------------------------------------
+# PRODUCTS (ENGLISH + TAMIL)
+-------------------------------------------------------------------------------
+
+MySQL table `products`:
+- id
+- name_en (e.g. "Tea")
+- name_ta (Tamil: "தேநீர்")
+- price
+- unit_id (FK → units)
+- is_active
+- image_path (stored under /uploads/products/)
+- timestamps
+
+Rules:
+- Display name format: **“Tea | தேநீர்”**
+- Images uploaded with multer
+- When updating an image, delete old image file
+- When deleting a product, delete its image file
+- Only jpg/png allowed
+
+Admin Panel must manage:
+- Create product
+- Edit product (name_en, name_ta, price, unit, image)
+- Delete product
+- Toggle active/inactive
+
+Only ~11–12 items will exist.
+
+-------------------------------------------------------------------------------
+# KIOSK WORKFLOW (USER)
+-------------------------------------------------------------------------------
+
+After user login:
+
+### STEP 1 – UNIT SELECTION
+- Show list of active units in large cards.
+
+### STEP 2 – PRODUCT SELECTION
+- Grid of product cards:
+  - Image
+  - “name_en | name_ta”
+  - Price
+  - Large checkbox
+- Quantity always = **1**
+- User selects items for printing
+
+### STEP 3 – DATE SELECTION (VERY IMPORTANT)
+- Show monthly calendar for **current month**
+- On initial load:
+  - **Auto-select all days except Sundays**
+- User can deselect any day
+- Number of selected days = number of bills to print
+- Example:
+  - Select 1 day → print 1 bill
+  - Select 10 days → print 10 bills
+  - Select 30 days → print 30 bills
+
+### STEP 4 – PAYMENT OPTIONS
+Show:
+- Selected products
+- Per-day total
+- Count of selected days
+- Grand total = per-day total × days
+
+Payment Mode Buttons:
+1. **UPI (Razorpay)**
+2. **Cash**
+3. **Free Meals**
+4. **Guest**
+
+### PAYMENT LOGIC
+
+1. **UPI / Razorpay**
+   - Backend creates Razorpay order for full grand total.
+   - Frontend opens Razorpay checkout.
+   - On success, backend verifies → payment_status='PAID' → print.
+
+2. **Cash**
+   - No Razorpay.
+   - payment_mode='CASH', payment_status='PAID'
+   - Directly print bills.
+
+3. **Free Meals**
+   - payment_mode='FREE'
+   - payment_status='PAID'
+   - Print bills but clearly mark **FREE MEALS**.
+
+4. **Guest**
+   - payment_mode='GUEST'
+   - payment_status='PAID'
+   - **NO PRINT** (just store logs).
+
+-------------------------------------------------------------------------------
+# DATABASE STRUCTURE FOR ORDERS
+-------------------------------------------------------------------------------
+
+### `orders`:
+- id
+- user_id
+- unit_id
+- payment_mode: 'UPI' | 'CASH' | 'FREE' | 'GUEST'
+- payment_status: 'PENDING' | 'PAID' | 'FAILED'
+- total_amount
+- timestamps
+
+### `order_day_bills`:
+- id
+- order_id
+- bill_date (DATE)
+- amount (per-day amount)
+- is_printed
+- printed_at
+- printer_ip_snapshot
+- printer_port_snapshot
+- timestamps
+
+### `order_items`:
+- id
+- order_day_bill_id
+- product_id
+- quantity (always 1)
+- unit_price
+- total_price
+- timestamps
+
+Flow:
+- User selects products + selectedDates + payment
+- Backend:
+  - Creates 1 `order`
+  - Creates N `order_day_bills`
+  - For each bill_date, create order_items for every selected product
+
+-------------------------------------------------------------------------------
+# PRINTING (BACKEND → IMPACT 260IV PRINTER OVER LAN)
+-------------------------------------------------------------------------------
+
+Printing MUST be done on the backend.
+
+For each selected date (each order_day_bill):
+
+1. Backend creates ESC/POS buffer using:
+   - node-escpos OR
+   - manual ESC/POS bytes over net.Socket
+
+2. Connect to:
+   - unit.printer_ip
+   - unit.printer_port (likely 9100)
+
+3. Send ESC/POS data
+
+4. Close the TCP connection
+
+5. Mark:
+   - order_day_bills.is_printed = true
+   - order_day_bills.printed_at = now
+
+### Receipt Format (match sample you referenced)
+
+- Centered **PRITHVI** (or image if supported)
+- “Powered by XTOWN”
+- --------------------------------
+- Transaction ID
+- Bill No (incremental or short UUID)
+- Printing Time
+- Bill Date (the selected date)
+- --------------------------------
+- For each product:
+  - “Tea | தேநீர்  - ₹6 x 1 = ₹6”
+- --------------------------------
+- Payment Mode:
+  - “UPI Payment”
+  - “Cash Payment”
+  - “Free Meals”
+- Print Time
+- A few blank lines and cut
+
+### Important:
+- If payment_mode = "GUEST":
+  - **DO NOT PRINT**
+  - Skip print API
+
+-------------------------------------------------------------------------------
+# ADMIN PANEL
+-------------------------------------------------------------------------------
+
+Routes under `/admin/*`:
+
+### Dashboard
+- Filter by:
+  - Date range
+  - Unit
+  - Payment mode
+- Stats:
+  - Total bills
+  - Revenue
+  - Count of Cash/UPI/Free/Guest
+  - Per-unit analysis
+  - Daily totals
+
+### Products Management
+- List, Create, Edit, Delete, Upload Image
+
+### Units Management
+- List, Create, Edit
+- Test Print button
+
+### Logs (OrderDayBills)
+- Table: bill_date, unit, amount, payment_mode, printed_at
+- Filters: date, unit, payment mode
+- Bill detail view: show items
+
+-------------------------------------------------------------------------------
+# PWA REQUIREMENTS
+-------------------------------------------------------------------------------
+
+- manifest.json:
+  - name: “Prithvi CMS Kiosk”
+  - display: “standalone”
+  - orientation: “landscape”
+- service worker:
+  - Cache assets
+  - Auto-refresh on new version
+- Disable text selection, zoom, context menu
+- Large touch-friendly UI everywhere
+
+-------------------------------------------------------------------------------
+# REACT USEEFFECT REQUIREMENTS
+-------------------------------------------------------------------------------
+
+- Fetch products on `[unitId]`
+- Refetch lists after CRUD success
+- Do NOT put inline functions/objects in effect dependencies
+- Memoize callbacks with useCallback
+- Avoid infinite loops
+
+-------------------------------------------------------------------------------
+# EDGE CASES
+-------------------------------------------------------------------------------
+
+- No units → show error on kiosk
+- No products → show “No items”
+- No dates selected → disable payment
+- Printer offline → catch socket errors, set is_printed=false, show retry
+- Razorpay payment success but server failure → retry verification
+- Auto-select all days except Sundays correctly
+- Skip printing for GUEST mode
+- Tamil names must print correctly (UTF-8)
+
+-------------------------------------------------------------------------------
+# FINAL DELIVERABLES
+-------------------------------------------------------------------------------
+
+Provide full codebase:
+
+### BACKEND (/server)
+- Express app
+- Sequelize models + migrations for:
+  - users, units, products, orders, order_day_bills, order_items
+- Product upload system
+- Razorpay integration
+- ESC/POS print service that prints bills for each day
+- Routes:
+  - auth
+  - products
+  - units
+  - orders (create, pay-cash, verify-upi, print)
+  - logs
+- Serve React build
+
+### FRONTEND (/client)
+- React JS PWA
+- Tailwind CSS
+- Screens:
+  - /login
+  - /kiosk/unit
+  - /kiosk/products
+  - /kiosk/calendar
+  - /kiosk/payment
+  - /kiosk/success
+  - /admin/login
+  - /admin/dashboard
+  - /admin/products
+  - /admin/units
+  - /admin/logs
+- Calendar auto-selection except Sundays
+- Payment UI with 4 modes
+- Call backend for printing
+
+Make everything clean, stable, and production-ready.
