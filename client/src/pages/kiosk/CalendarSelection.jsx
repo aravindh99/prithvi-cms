@@ -5,12 +5,21 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import Layout from '../../components/Layout.jsx';
 import { FaSignOutAlt } from 'react-icons/fa';
 
+// Helper to format a JS Date as YYYY-MM-DD using local time (no UTC shift)
+const toLocalDateString = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 const CalendarSelection = () => {
   const { selectedDates, setSelectedDates, selectedProducts, calculatePerDayTotal } = useOrder();
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [days, setDays] = useState([]);
+  const [selectAllMonth, setSelectAllMonth] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -21,24 +30,23 @@ const CalendarSelection = () => {
     generateCalendarDays();
   }, [currentMonth]);
 
+  // Keep select-all checkbox in sync with current month + selectedDates
   useEffect(() => {
-    // Auto-select all days except Sundays on initial load
-    if (selectedDates.length === 0) {
-      const year = currentMonth.getFullYear();
-      const month = currentMonth.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const autoSelected = [];
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthDates = [];
 
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month, day);
-        if (date.getDay() !== 0) { // Not Sunday
-          autoSelected.push(date.toISOString().split('T')[0]);
-        }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      if (date.getDay() !== 0) {
+        monthDates.push(toLocalDateString(date));
       }
-
-      setSelectedDates(autoSelected);
     }
-  }, []);
+
+    const allSelected = monthDates.length > 0 && monthDates.every(d => selectedDates.includes(d));
+    setSelectAllMonth(allSelected);
+  }, [currentMonth, selectedDates]);
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -66,7 +74,7 @@ const CalendarSelection = () => {
 
   const toggleDate = (date) => {
     if (!date) return;
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateString(date);
     if (selectedDates.includes(dateStr)) {
       setSelectedDates(selectedDates.filter(d => d !== dateStr));
     } else {
@@ -76,12 +84,39 @@ const CalendarSelection = () => {
 
   const isDateSelected = (date) => {
     if (!date) return false;
-    return selectedDates.includes(date.toISOString().split('T')[0]);
+    return selectedDates.includes(toLocalDateString(date));
   };
 
   const isSunday = (date) => {
     if (!date) return false;
     return date.getDay() === 0;
+  };
+
+  const handleToggleSelectAll = (event) => {
+    const checked = event.target.checked;
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthDates = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      if (date.getDay() !== 0) {
+        monthDates.push(toLocalDateString(date));
+      }
+    }
+
+    if (checked) {
+      // Merge current month dates with any existing selections from other months
+      const otherDates = selectedDates.filter(d => !monthDates.includes(d));
+      setSelectedDates([...otherDates, ...monthDates]);
+      setSelectAllMonth(true);
+    } else {
+      // Clear only current month selections, keep other months
+      const remaining = selectedDates.filter(d => !monthDates.includes(d));
+      setSelectedDates(remaining);
+      setSelectAllMonth(false);
+    }
   };
 
   const handleContinue = () => {
@@ -130,22 +165,33 @@ const CalendarSelection = () => {
           </div>
 
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-            <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <button
-                onClick={previousMonth}
-                className="text-lg sm:text-xl font-bold text-gray-600 hover:text-gray-800 px-2 sm:px-3 py-1"
-              >
-                ‹
-              </button>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-              </h2>
-              <button
-                onClick={nextMonth}
-                className="text-lg sm:text-xl font-bold text-gray-600 hover:text-gray-800 px-2 sm:px-3 py-1"
-              >
-                ›
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
+              <div className="flex items-center justify-between sm:justify-start gap-2">
+                <button
+                  onClick={previousMonth}
+                  className="text-lg sm:text-xl font-bold text-gray-600 hover:text-gray-800 px-2 sm:px-3 py-1"
+                >
+                  ‹
+                </button>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                </h2>
+                <button
+                  onClick={nextMonth}
+                  className="text-lg sm:text-xl font-bold text-gray-600 hover:text-gray-800 px-2 sm:px-3 py-1"
+                >
+                  ›
+                </button>
+              </div>
+              <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={selectAllMonth}
+                  onChange={handleToggleSelectAll}
+                  className="w-4 h-4"
+                />
+                <span>Select all days (except Sundays) this month</span>
+              </label>
             </div>
 
             <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
@@ -159,7 +205,7 @@ const CalendarSelection = () => {
                   return <div key={`empty-${index}`} className="aspect-square"></div>;
                 }
 
-                const dateStr = date.toISOString().split('T')[0];
+                const dateStr = toLocalDateString(date);
                 const selected = isDateSelected(date);
                 const sunday = isSunday(date);
 

@@ -1,7 +1,12 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import { User, Unit } from '../models/index.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
 
 router.post('/login', async (req, res) => {
   try {
@@ -11,7 +16,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       where: { username },
       include: [{
         model: Unit,
@@ -30,9 +35,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // No session storage - trust localStorage only
+    const token = jwt.sign(
+      { id: user.id, role: user.role, unit_id: user.unit_id },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
     res.json({
       success: true,
+      token,
       user: {
         id: user.id,
         username: user.username,
@@ -48,21 +59,13 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-  // No session to destroy - just return success
-  // Frontend will clear localStorage
+  // Stateless JWT - frontend just discards token
   res.json({ success: true });
 });
 
-router.get('/me', async (req, res) => {
-  // Trust user info from headers (from localStorage)
-  const userId = req.headers['x-user-id'];
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
+router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await User.findByPk(parseInt(userId), {
+    const user = await User.findByPk(req.userId, {
       include: [{
         model: Unit,
         as: 'unit',

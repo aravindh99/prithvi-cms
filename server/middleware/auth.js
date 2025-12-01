@@ -1,34 +1,42 @@
-// Trust user info from request headers (from localStorage)
-// WARNING: This skips server-side validation - only use for development/testing
+import jwt from 'jsonwebtoken';
+
+const getTokenFromRequest = (req) => {
+  const authHeader = req.headers.authorization || '';
+  const parts = authHeader.split(' ');
+  if (parts.length === 2 && parts[0] === 'Bearer') {
+    return parts[1];
+  }
+  return null;
+};
+
 export const requireAuth = (req, res, next) => {
-  const userId = req.headers['x-user-id'];
-  const userRole = req.headers['x-user-role'];
-  
-  if (!userId) {
+  const token = getTokenFromRequest(req);
+
+  if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
-  // Attach user info to request for use in routes
-  req.userId = parseInt(userId);
-  req.userRole = userRole;
-  next();
+
+  try {
+    const secret = process.env.JWT_SECRET || 'change_this_secret';
+    const payload = jwt.verify(token, secret);
+
+    req.userId = payload.id;
+    req.userRole = payload.role;
+    req.userUnitId = payload.unit_id;
+
+    next();
+  } catch (error) {
+    console.error('JWT verification error:', error);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
 };
 
 export const requireAdmin = (req, res, next) => {
-  const userId = req.headers['x-user-id'];
-  const userRole = req.headers['x-user-role'];
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  
-  if (userRole !== 'admin') {
-    return res.status(403).json({ error: 'Forbidden - Admin access required' });
-  }
-  
-  // Attach user info to request for use in routes
-  req.userId = parseInt(userId);
-  req.userRole = userRole;
-  next();
+  requireAuth(req, res, () => {
+    if (req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden - Admin access required' });
+    }
+    next();
+  });
 };
 

@@ -17,6 +17,7 @@ import Products from './pages/admin/Products.jsx';
 import Units from './pages/admin/Units.jsx';
 import Logs from './pages/admin/Logs.jsx';
 import Users from './pages/admin/Users.jsx';
+import AdminCheckout from './pages/admin/AdminCheckout.jsx';
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -105,6 +106,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requireAdmin>
             <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/checkout"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminCheckout />
           </ProtectedRoute>
         }
       />

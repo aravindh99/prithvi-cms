@@ -1,30 +1,3 @@
-### Step 1: Get Server IP Address
-
-1. Open Command Prompt
-2. Run:
-   ```cmd
-   ipconfig
-   ```
-3. Find your network adapter (usually "Ethernet adapter" or "Wireless LAN adapter")
-4. Note the **IPv4 Address** (e.g., `192.168.1.100`)
-5. This is your server IP - you'll use it for:
-   - Database host (if MySQL is on same server, use `localhost` or `127.0.0.1`)
-   - Frontend URL (e.g., `http://192.168.1.100:5000`)
-
-### Step 2: Copy Files to Server
-
-1. Copy the entire project folder to the server (e.g., `C:\prithvi-kiosk\`)
-2. Or use these folders:
-   - `C:\prithvi-kiosk\server\` - Backend files
-   - `C:\prithvi-kiosk\client\` - Frontend files
-
-
-
-### Step 4: Configure Environment Variables
-
-### Step 6: Build Frontend
-
-4. **Important:** The backend will serve files from `client/dist` folder
 
 ### Step 7: Seed Admin User (First Time Only)
 
@@ -76,20 +49,6 @@ pm2 monit                   # Monitor resources
 6. Select "Allow the connection" → Next
 7. Check all profiles (Domain, Private, Public) → Next
 8. Name it "Prithvi Kiosk Server" → Finish
-
-### Step 11: Test the Application
-
-1. Open a browser on the server
-2. Navigate to: `http://localhost:5000` or `http://YOUR_SERVER_IP:5000`
-3. You should see the login page
-4. Login with admin credentials (from seed script)
-
-### Step 12: Access from Other Devices (LAN)
-
-- From any device on the same network:
-  - Open browser
-  - Navigate to: `http://YOUR_SERVER_IP:5000`
-  - Replace `YOUR_SERVER_IP` with the actual server IP
 
 
 

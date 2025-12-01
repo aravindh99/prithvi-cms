@@ -37,8 +37,8 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Unit not found' });
     }
 
-    // Users can only see active units
-    if (req.session.role !== 'admin' && !unit.is_active) {
+    // Non-admin users can only see active units
+    if (req.userRole !== 'admin' && !unit.is_active) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

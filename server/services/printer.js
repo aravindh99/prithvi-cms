@@ -48,44 +48,52 @@ export const printBill = async (orderDayBill, unit, order, products) => {
       try {
         // Initialize printer
         await sendCommand(socket, commands.INIT);
-        await sendCommand(socket, commands.FEED_LINES(1));
 
-        // Center align and print PRITHVI
+        // Header - compact, centered
         await sendCommand(socket, commands.SET_ALIGN_CENTER);
         await sendCommand(socket, commands.SET_BOLD_ON);
         await sendCommand(socket, commands.SET_DOUBLE_WIDTH_HEIGHT);
         await sendCommand(socket, 'PRITHVI\n');
         await sendCommand(socket, commands.SET_BOLD_OFF);
         await sendCommand(socket, commands.SET_FONT_A);
-        
-        // Powered by XTOWN
+
+        // Unit name (small, directly under logo)
+        const unitName = (unit?.name || '').toString().replace(/[^\x20-\x7E]/g, '');
+        if (unitName) {
+          await sendCommand(socket, `${unitName}\n`);
+        }
         await sendCommand(socket, 'Powered by XTOWN\n');
-        await sendCommand(socket, commands.FEED_LINES(1));
 
         // Separator
         await sendCommand(socket, commands.SET_ALIGN_LEFT);
         await sendCommand(socket, commands.HORIZONTAL_LINE);
-        await sendCommand(socket, commands.FEED_LINES(1));
 
-        // Transaction details
-        await sendCommand(socket, `Transaction ID: ${order.id}\n`);
-        await sendCommand(socket, `Bill No: ${orderDayBill.id}\n`);
-        await sendCommand(socket, `Printing Time: ${new Date().toLocaleString('en-IN')}\n`);
-        await sendCommand(socket, `Bill Date: ${new Date(orderDayBill.bill_date).toLocaleDateString('en-IN')}\n`);
-        await sendCommand(socket, commands.FEED_LINES(1));
+        // Transaction details - compressed
+        await sendCommand(socket, `Txn:${order.id}  Bill:${orderDayBill.id}\n`);
+        await sendCommand(socket, `Date:${new Date(orderDayBill.bill_date).toLocaleDateString('en-IN')}\n`);
         await sendCommand(socket, commands.HORIZONTAL_LINE);
-        await sendCommand(socket, commands.FEED_LINES(1));
 
-        // Products
+        // Products - English only, compact
         for (const item of products) {
           const product = item.product;
-          const line = `${product.name_en} | ${product.name_ta} - ₹${parseFloat(item.unit_price).toFixed(2)} x ${item.quantity} = ₹${parseFloat(item.total_price).toFixed(2)}\n`;
+          const nameEn = (product?.name_en || '').toString().replace(/[^\x20-\x7E]/g, '');
+          const qty = item.quantity || 0;
+          const unitPrice = parseFloat(item.unit_price).toFixed(2);
+          const totalPrice = parseFloat(item.total_price).toFixed(2);
+          const left = `${nameEn} x ${qty}`;
+          const right = `Rs ${totalPrice}`;
+
+          const maxWidth = 32;
+          const rightLen = right.length;
+          const leftMax = Math.max(0, maxWidth - rightLen - 1);
+          const trimmedLeft = left.length > leftMax ? left.slice(0, leftMax) : left;
+          const spaces = ' '.repeat(Math.max(1, maxWidth - trimmedLeft.length - rightLen));
+
+          const line = `${trimmedLeft}${spaces}${right}\n`;
           await sendCommand(socket, line);
         }
 
-        await sendCommand(socket, commands.FEED_LINES(1));
         await sendCommand(socket, commands.HORIZONTAL_LINE);
-        await sendCommand(socket, commands.FEED_LINES(1));
 
         // Payment mode
         let paymentModeText = '';
@@ -109,13 +117,13 @@ export const printBill = async (orderDayBill, unit, order, products) => {
             paymentModeText = order.payment_mode || 'Unknown';
             break;
         }
+        const totalLine = `Total: ₹${parseFloat(orderDayBill.amount).toFixed(2)}\n`;
         await sendCommand(socket, `Payment Mode: ${paymentModeText}\n`);
-        await sendCommand(socket, `Total: ₹${parseFloat(orderDayBill.amount).toFixed(2)}\n`);
-        await sendCommand(socket, commands.FEED_LINES(1));
+        await sendCommand(socket, totalLine);
         await sendCommand(socket, `Print Time: ${new Date().toLocaleString('en-IN')}\n`);
 
-        // Feed and cut
-        await sendCommand(socket, commands.FEED_LINES(3));
+        // Feed and cut (minimal extra paper)
+        await sendCommand(socket, commands.FEED_LINES(2));
         await sendCommand(socket, commands.CUT);
         await sendCommand(socket, commands.FEED_LINES(1));
 

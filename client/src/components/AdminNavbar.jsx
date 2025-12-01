@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { FaHome, FaBox, FaBuilding, FaFileAlt, FaUsers, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { FaHome, FaBox, FaBuilding, FaFileAlt, FaUsers, FaSignOutAlt, FaBars, FaTimes, FaCashRegister } from 'react-icons/fa';
 import api from '../config/api.js';
 
 const AdminNavbar = () => {
@@ -17,6 +17,7 @@ const AdminNavbar = () => {
 
   const navItems = [
     { path: '/admin/dashboard', icon: FaHome, label: 'Dashboard' },
+    { path: '/admin/checkout', icon: FaCashRegister, label: 'Checkout' },
     { path: '/admin/products', icon: FaBox, label: 'Products' },
     { path: '/admin/units', icon: FaBuilding, label: 'Units' },
     { path: '/admin/logs', icon: FaFileAlt, label: 'Logs' },

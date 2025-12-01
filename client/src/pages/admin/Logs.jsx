@@ -10,13 +10,21 @@ const Logs = () => {
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBill, setSelectedBill] = useState(null);
+  // Helper to format a JS Date as YYYY-MM-DD using local time (no UTC shift)
+  const toLocalDateString = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   // Default date filter: current month start to 30 days in the future (to include scheduled bills)
   const defaultEndDate = new Date();
   defaultEndDate.setDate(defaultEndDate.getDate() + 30);
   
   const [filters, setFilters] = useState({
-    start_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
-    end_date: defaultEndDate.toISOString().split('T')[0],
+    start_date: toLocalDateString(new Date(new Date().setDate(1))),
+    end_date: toLocalDateString(defaultEndDate),
     unit_id: '',
     payment_mode: '',
     page: 1,
@@ -246,13 +254,14 @@ const Logs = () => {
 
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
+              <table className="w-full min-w-[720px]">
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Bill Date</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Unit</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Amount</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Payment Mode</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Payment Status</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Printed At</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Actions</th>
                   </tr>
@@ -271,6 +280,21 @@ const Logs = () => {
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {bill.order?.payment_mode || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-semibold ${
+                            bill.order?.payment_status === 'PAID'
+                              ? 'bg-green-100 text-green-800'
+                              : bill.order?.payment_status === 'PENDING'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : bill.order?.payment_status
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {bill.order?.payment_status || 'N/A'}
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
@@ -355,7 +379,13 @@ const Logs = () => {
                     <span className="font-semibold">Unit:</span> {selectedBill.order?.unit?.name}
                   </div>
                   <div>
+                    <span className="font-semibold">Order ID:</span> {selectedBill.order?.id}
+                  </div>
+                  <div>
                     <span className="font-semibold">Payment Mode:</span> {selectedBill.order?.payment_mode}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Payment Status:</span> {selectedBill.order?.payment_status}
                   </div>
                   <div>
                     <span className="font-semibold">Amount:</span> ₹{parseFloat(selectedBill.amount).toFixed(2)}

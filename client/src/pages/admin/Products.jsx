@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../../config/api.js';
+import api, { API_BASE_URL } from '../../config/api.js';
 import Layout from '../../components/Layout.jsx';
 import AdminNavbar from '../../components/AdminNavbar.jsx';
 import Loading from '../../components/Loading.jsx';
@@ -59,7 +59,8 @@ const Products = () => {
         is_active: product.is_active,
         image: null
       });
-      setImagePreview(product.image_path ? product.image_path : null);
+      const imageUrl = product.image_path ? `${API_BASE_URL}${product.image_path}` : null;
+      setImagePreview(imageUrl);
     } else {
       setEditingProduct(null);
       setFormData({
@@ -191,7 +192,7 @@ const Products = () => {
               <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
                   <img
-                        src={product.image_path ? product.image_path : noImage}
+                    src={product.image_path ? `${API_BASE_URL}${product.image_path}` : noImage}
                     alt={product.name_en}
                     className="w-full h-full object-contain"
                     onError={(e) => {

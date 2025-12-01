@@ -5,9 +5,8 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../config/api.js';
 import Layout from '../../components/Layout.jsx';
 import Loading from '../../components/Loading.jsx';
-import cashIcon from '../../assets/cash.png';
 import upiIcon from '../../assets/upi.png';
-import { FaGift, FaUser, FaSignOutAlt, FaArrowLeft } from 'react-icons/fa';
+import { FaSignOutAlt, FaArrowLeft } from 'react-icons/fa';
 
 const Payment = () => {
   const { selectedUnit, selectedProducts, selectedDates, calculatePerDayTotal, calculateGrandTotal, setCurrentOrder } = useOrder();
@@ -74,67 +73,6 @@ const Payment = () => {
       console.error('Create order error:', error);
       alert('Failed to create order. Please try again.');
       return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCashPayment = async () => {
-    const orderId = await createOrder();
-    if (!orderId) return;
-
-    try {
-      setLoading(true);
-      const response = await api.post(`/orders/${orderId}/pay-cash`);
-      setOrderId(null); // Clear orderId on success
-      navigate('/kiosk/success', { state: { order: response.data.order, printResults: response.data.printResults } });
-    } catch (error) {
-      console.error('Cash payment error:', error);
-      // Backend already deleted the order if printing failed, no need to delete again
-      setOrderId(null);
-      alert(error.response?.data?.error || 'Payment/Printing failed. Order has been cancelled. Please try again.');
-      navigate('/kiosk/products'); // Navigate to products page on failure
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFreeMeals = async () => {
-    const orderId = await createOrder();
-    if (!orderId) return;
-
-    try {
-      setLoading(true);
-      const response = await api.post(`/orders/${orderId}/pay-free`);
-      setOrderId(null); // Clear orderId on success
-      navigate('/kiosk/success', { state: { order: response.data.order, printResults: response.data.printResults } });
-    } catch (error) {
-      console.error('Free meals error:', error);
-      // Backend already deleted the order if printing failed, no need to delete again
-      setOrderId(null);
-      alert(error.response?.data?.error || 'Payment/Printing failed. Order has been cancelled. Please try again.');
-      navigate('/kiosk/products'); // Navigate to products page on failure
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGuest = async () => {
-    const orderId = await createOrder();
-    if (!orderId) return;
-
-    try {
-      setLoading(true);
-      const response = await api.post(`/orders/${orderId}/pay-guest`);
-      setOrderId(null); // Clear orderId on success - Guest doesn't need printing, so no deletion
-      navigate('/kiosk/success', { state: { order: response.data.order } });
-    } catch (error) {
-      console.error('Guest payment error:', error);
-      // Only delete on actual error (not on success)
-      await deletePendingOrder(orderId);
-      setOrderId(null);
-      alert(error.response?.data?.error || 'Failed to process. Please try again.');
-      navigate('/kiosk/products'); // Navigate to products page on failure
     } finally {
       setLoading(false);
     }
@@ -297,30 +235,6 @@ const Payment = () => {
               >
                 <img src={upiIcon} alt="UPI" className="h-8 sm:h-10 md:h-12" />
                 <span className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">UPI / Razorpay</span>
-              </button>
-
-              <button
-                onClick={handleCashPayment}
-                className="w-full bg-white border-2 border-green-500 rounded-xl p-4 sm:p-6 hover:bg-green-50 transition-colors flex items-center justify-center gap-3 sm:gap-4"
-              >
-                <img src={cashIcon} alt="Cash" className="h-8 sm:h-10 md:h-12" />
-                <span className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">Cash</span>
-              </button>
-
-              <button
-                onClick={handleFreeMeals}
-                className="w-full bg-white border-2 border-purple-500 rounded-xl p-4 sm:p-6 hover:bg-purple-50 transition-colors flex items-center justify-center gap-3 sm:gap-4"
-              >
-                <FaGift className="text-purple-500 text-2xl sm:text-3xl md:text-4xl" />
-                <span className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">Free Meals</span>
-              </button>
-
-              <button
-                onClick={handleGuest}
-                className="w-full bg-white border-2 border-gray-500 rounded-xl p-4 sm:p-6 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 sm:gap-4"
-              >
-                <FaUser className="text-gray-500 text-2xl sm:text-3xl md:text-4xl" />
-                <span className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">Guest</span>
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import api from '../config/api.js';
 const AuthContext = createContext();
 
 const STORAGE_KEY = 'prithvi_auth_user';
+const TOKEN_KEY = 'prithvi_auth_token';
 
 // Load user from localStorage
 const loadUserFromStorage = () => {
@@ -49,33 +50,45 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
-    // Trust localStorage - no server validation needed
-    // Just verify user exists in localStorage
     const storedUser = loadUserFromStorage();
-    if (storedUser) {
-      setUser(storedUser);
-      // Optionally verify with server (but don't fail if it fails)
-      try {
-        const response = await api.get('/auth/me');
-        const userData = response.data.user;
-        setUser(userData);
-        saveUserToStorage(userData); // Update localStorage with fresh data
-      } catch (error) {
-        // Server validation failed, but keep using localStorage
-        console.warn('Server auth check failed, using localStorage:', error);
-      }
-    } else {
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+
+    if (!storedUser || !storedToken) {
       setUser(null);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    setUser(storedUser);
+
+    try {
+      const response = await api.get('/auth/me');
+      const userData = response.data.user;
+      setUser(userData);
+      saveUserToStorage(userData);
+    } catch (error) {
+      console.warn('Auth check failed, clearing auth state:', error);
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+        saveUserToStorage(null);
+      } catch (e) {
+        console.error('Error clearing auth storage:', e);
+      }
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const login = async (username, password) => {
     try {
       const response = await api.post('/auth/login', { username, password });
-      const userData = response.data.user;
+      const { user: userData, token } = response.data;
       setUser(userData);
       saveUserToStorage(userData); // Persist to localStorage
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
       return { success: true, user: userData };
     } catch (error) {
       return { success: false, error: error.response?.data?.error || 'Login failed' };
@@ -90,6 +103,11 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       saveUserToStorage(null); // Clear localStorage
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+      } catch (e) {
+        console.error('Error clearing auth token:', e);
+      }
     }
   };
 

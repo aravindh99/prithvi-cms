@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import api from '../../config/api.js';
+import api, { API_BASE_URL } from '../../config/api.js';
 import Layout from '../../components/Layout.jsx';
 import Loading from '../../components/Loading.jsx';
 import { FaCheckCircle, FaSignOutAlt } from 'react-icons/fa';
@@ -118,7 +118,7 @@ const ProductSelection = () => {
                     )}
                     <div className="aspect-square bg-gray-100 flex items-center justify-center h-24">
                       <img
-                        src={product.image_path ? product.image_path : noImage}
+                        src={product.image_path ? `${API_BASE_URL}${product.image_path}` : noImage}
                         alt={product.name_en}
                         className="w-full h-full object-cover"
                         onError={(e) => {
