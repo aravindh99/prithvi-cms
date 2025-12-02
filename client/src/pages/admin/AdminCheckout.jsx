@@ -15,27 +15,58 @@ const toLocalDateString = (date) => {
 
 const AdminCheckout = () => {
   const { user } = useAuth();
+  const [units, setUnits] = useState([]);
+  const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [products, setProducts] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [selectedDates, setSelectedDates] = useState([]);
   const [paymentMode, setPaymentMode] = useState('CASH'); // CASH | FREE | GUEST
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false); // prevent double submits
 
   // Calendar state (similar to kiosk, but compact)
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [days, setDays] = useState([]);
   const [selectAllMonth, setSelectAllMonth] = useState(false);
 
+  // Fetch all units on component mount
+  useEffect(() => {
+    const loadUnits = async () => {
+      try {
+        const response = await api.get('/units');
+        setUnits(response.data);
+        if (response.data.length > 0) {
+          setSelectedUnitId(response.data[0].id);
+        }
+      } catch (error) {
+        console.error('Admin checkout units error:', error);
+        alert('Failed to load units.');
+      }
+    };
+
+    loadUnits();
+  }, []);
+
+  // Load products when selected unit changes
   useEffect(() => {
     const loadProducts = async () => {
       try {
         setLoading(true);
-        if (!user?.unit_id) {
+        if (!selectedUnitId) {
           setProducts([]);
           return;
         }
-        const response = await api.get(`/products?unit_id=${user.unit_id}&is_active=true`);
+        // Warm up printer connection for the selected unit (ignore failures)
+        api
+          .get(`/printer/ping${selectedUnitId ? `?unit_id=${selectedUnitId}` : ''}`)
+          .catch((err) => {
+            console.warn('[Printer Ping] Admin warm-up failed:', err?.message || err);
+          });
+
+        const response = await api.get(`/products?unit_id=${selectedUnitId}&is_active=true`);
         setProducts(response.data);
+        // Clear selected products when unit changes
+        setSelectedProducts([]);
       } catch (error) {
         console.error('Admin checkout products error:', error);
         alert('Failed to load products for admin checkout.');
@@ -45,7 +76,7 @@ const AdminCheckout = () => {
     };
 
     loadProducts();
-  }, [user]);
+  }, [selectedUnitId]);
 
   const toggleProduct = (product) => {
     setSelectedProducts((prev) => {
@@ -177,6 +208,10 @@ const AdminCheckout = () => {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const handleSubmit = async () => {
+    if (!selectedUnitId) {
+      alert('Please select a unit');
+      return;
+    }
     if (!selectedProducts.length) {
       alert('Select at least one product');
       return;
@@ -187,14 +222,16 @@ const AdminCheckout = () => {
     }
 
     try {
-      setLoading(true);
+      setSubmitting(true);
       const product_ids = selectedProducts.map((p) => p.id);
-      const initialMode = paymentMode === 'GUEST' ? 'GUEST' : 'PENDING';
+      // Use the selected payment mode directly: CASH, FREE, or GUEST
+      const initialMode = paymentMode;
 
       const createRes = await api.post('/orders', {
         product_ids,
         selected_dates: selectedDates,
-        payment_mode: initialMode
+        payment_mode: initialMode,
+        unit_id: selectedUnitId
       });
 
       const orderId = createRes.data.order.id;
@@ -214,7 +251,7 @@ const AdminCheckout = () => {
       console.error('Admin checkout error:', error);
       alert(error.response?.data?.error || 'Failed to create admin bill. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -237,10 +274,29 @@ const AdminCheckout = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-4 sm:p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Select Unit
+                </label>
+                <select
+                  value={selectedUnitId || ''}
+                  onChange={(e) => setSelectedUnitId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="">-- Select Unit --</option>
+                  {units.map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">
                 Select Products
               </h2>
-              {products.length === 0 ? (
+              {!selectedUnitId ? (
+                <p className="text-sm text-gray-500">Please select a unit to view products.</p>
+              ) : products.length === 0 ? (
                 <p className="text-sm text-gray-500">No products found for this unit.</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-96 overflow-y-auto">
@@ -320,7 +376,7 @@ const AdminCheckout = () => {
                       );
                     }
 
-                    const dateStr = date.toISOString().split('T')[0];
+                    const dateStr = toLocalDateString(date);
                     const selected = isDateSelected(date);
                     const sunday = isSunday(date);
 
@@ -387,9 +443,10 @@ const AdminCheckout = () => {
 
                 <button
                   onClick={handleSubmit}
-                  className="w-full mt-4 bg-blue-600 text-white text-sm sm:text-base px-4 py-2 sm:py-3 rounded-lg hover:bg-blue-700 font-semibold"
+                  disabled={loading || submitting}
+                  className="w-full mt-4 bg-blue-600 text-white text-sm sm:text-base px-4 py-2 sm:py-3 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create & Print Bill
+                  {submitting ? 'Processing…' : 'Create & Print Bill'}
                 </button>
               </div>
             </div>

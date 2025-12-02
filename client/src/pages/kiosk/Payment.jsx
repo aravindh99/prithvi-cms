@@ -21,19 +21,19 @@ const Payment = () => {
     navigate('/login');
   };
 
-  const deletePendingOrder = async (orderId) => {
+  const cancelPendingOrder = async (orderId) => {
     if (!orderId) return;
     try {
-      await api.delete(`/orders/${orderId}`);
+      await api.post(`/orders/${orderId}/cancel`);
     } catch (error) {
-      console.error('Failed to delete pending order:', error);
-      // Continue anyway - order might already be deleted
+      console.error('Failed to cancel pending order:', error);
+      // Continue anyway - order might already be cancelled
     }
   };
 
   const handleBack = async () => {
     if (orderId) {
-      await deletePendingOrder(orderId);
+      await cancelPendingOrder(orderId);
       setOrderId(null);
     }
     navigate('/kiosk/products');
@@ -63,7 +63,8 @@ const Payment = () => {
       const response = await api.post('/orders', {
         product_ids: productIds,
         selected_dates: selectedDates,
-        payment_mode: 'PENDING'
+        // Kiosk always creates UPI orders; status is managed by Razorpay verify
+        payment_mode: 'UPI'
       });
 
       setOrderId(response.data.order.id);
@@ -84,7 +85,7 @@ const Payment = () => {
 
     if (!razorpayLoaded) {
       alert('Payment gateway is loading. Please wait...');
-      await deletePendingOrder(orderId);
+      await cancelPendingOrder(orderId);
       setOrderId(null);
       navigate('/kiosk/products'); // Navigate to products page
       return;
@@ -129,10 +130,10 @@ const Payment = () => {
                 } 
               });
             } else {
-              // Payment verification failed - order was deleted
-              console.log('[Payment] Payment verification failed. Order deleted.');
+              // Payment verification failed - order marked as FAILED
+              console.log('[Payment] Payment verification failed. Order marked as FAILED.');
               setOrderId(null);
-              alert(error.response?.data?.error || 'Payment verification failed. Order has been cancelled. Please try again.');
+              alert(error.response?.data?.error || 'Payment verification failed. Please try again.');
               setLoading(false);
               navigate('/kiosk/products'); // Navigate to products page on failure
             }
@@ -148,8 +149,8 @@ const Payment = () => {
         },
         modal: {
           ondismiss: async function() {
-            // User cancelled payment - delete the order
-            await deletePendingOrder(orderId);
+            // User cancelled payment - mark order as FAILED
+            await cancelPendingOrder(orderId);
             setOrderId(null);
             setLoading(false);
             navigate('/kiosk/products'); // Navigate to products page on cancellation
@@ -161,7 +162,7 @@ const Payment = () => {
       razorpay.open();
     } catch (error) {
       console.error('UPI payment error:', error);
-      await deletePendingOrder(orderId);
+      await cancelPendingOrder(orderId);
       setOrderId(null);
       alert(error.response?.data?.error || 'Failed to initiate payment. Please try again.');
       setLoading(false);

@@ -5,7 +5,7 @@ import { Op } from 'sequelize';
 
 const router = express.Router();
 
-// Get all order day bills with filters
+// Get all logs with filters - one row per order item (per product per day)
 router.get('/', requireAdmin, async (req, res) => {
   try {
     const { start_date, end_date, unit_id, payment_mode, page = 1, limit = 50 } = req.query;
@@ -32,8 +32,8 @@ router.get('/', requireAdmin, async (req, res) => {
     }
 
     if (payment_mode && payment_mode.trim() !== '') {
-      // Validate payment_mode enum
-      const validPaymentModes = ['PENDING', 'UPI', 'CASH', 'FREE', 'GUEST'];
+      // Validate payment_mode enum - only the 4 real modes
+      const validPaymentModes = ['UPI', 'CASH', 'FREE', 'GUEST'];
       if (!validPaymentModes.includes(payment_mode)) {
         return res.status(400).json({ error: `Invalid payment_mode filter. Must be one of: ${validPaymentModes.join(', ')}` });
       }
@@ -48,7 +48,8 @@ router.get('/', requireAdmin, async (req, res) => {
     const limitNum = Math.max(1, Math.min(100, parseInt(limit) || 50)); // Limit between 1-100, default 50
     const offset = (pageNum - 1) * limitNum;
 
-    const { count, rows } = await OrderDayBill.findAndCountAll({
+    // First find matching bills with their orders and units
+    const { count, rows: bills } = await OrderDayBill.findAndCountAll({
       where,
       include: [{
         model: Order,
@@ -60,17 +61,78 @@ router.get('/', requireAdmin, async (req, res) => {
           as: 'unit',
           attributes: ['id', 'name', 'code']
         }],
-        attributes: ['id', 'payment_mode', 'payment_status', 'total_amount']
+        // include unit_id so the generated subquery can join to units without SQL error
+        attributes: ['id', 'unit_id', 'payment_mode', 'payment_status', 'total_amount']
+      }, {
+        model: OrderItem,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name_en', 'name_ta', 'price']
+        }]
       }],
       order: [['bill_date', 'DESC'], ['createdAt', 'DESC']],
       limit: limitNum,
       offset: offset
     });
 
-    console.log('[Logs API] Results:', { count, rowsCount: rows.length, page: pageNum, totalPages: Math.ceil(count / limitNum) });
+    // Flatten to one log entry per item
+    const logs = [];
+    for (const bill of bills) {
+      if (!bill.items || bill.items.length === 0) {
+        // Still include a row for bills without items
+        logs.push({
+          id: bill.id,
+          bill_date: bill.bill_date,
+          amount: bill.amount,
+          is_printed: bill.is_printed,
+          printed_at: bill.printed_at,
+          order_id: bill.order?.id,
+          payment_mode: bill.order?.payment_mode,
+          payment_status: bill.order?.payment_status,
+          unit: bill.order?.unit,
+          item_id: null,
+          product_id: null,
+          product_name_en: null,
+          product_name_ta: null,
+          quantity: null,
+          line_total: null
+        });
+        continue;
+      }
+
+      for (const item of bill.items) {
+        logs.push({
+          id: bill.id,
+          bill_date: bill.bill_date,
+          amount: bill.amount,
+          is_printed: bill.is_printed,
+          printed_at: bill.printed_at,
+          order_id: bill.order?.id,
+          payment_mode: bill.order?.payment_mode,
+          payment_status: bill.order?.payment_status,
+          unit: bill.order?.unit,
+          item_id: item.id,
+          product_id: item.product_id,
+          product_name_en: item.product?.name_en || null,
+          product_name_ta: item.product?.name_ta || null,
+          quantity: item.quantity,
+          line_total: item.total_price
+        });
+      }
+    }
+
+    console.log('[Logs API] Results:', {
+      count,
+      billsCount: bills.length,
+      itemRows: logs.length,
+      page: pageNum,
+      totalPages: Math.ceil(count / limitNum)
+    });
     
     res.json({
-      bills: rows,
+      logs,
       total: count,
       page: pageNum,
       limit: limitNum,
@@ -145,7 +207,7 @@ router.delete('/all', requireAdmin, async (req, res) => {
     }
 
     if (payment_mode) {
-      const validPaymentModes = ['PENDING', 'UPI', 'CASH', 'FREE', 'GUEST'];
+      const validPaymentModes = ['UPI', 'CASH', 'FREE', 'GUEST'];
       if (!validPaymentModes.includes(payment_mode)) {
         await transaction.rollback();
         return res.status(400).json({ error: `Invalid payment_mode filter. Must be one of: ${validPaymentModes.join(', ')}` });

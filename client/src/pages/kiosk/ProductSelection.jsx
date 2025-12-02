@@ -31,6 +31,12 @@ const ProductSelection = () => {
     try {
       setLoading(true);
       setError('');
+
+      // Warm up printer connection in the background (ignore failures)
+      api.get('/printer/ping').catch((err) => {
+        console.warn('[Printer Ping] Kiosk warm-up failed:', err?.message || err);
+      });
+
       const response = await api.get(`/products?unit_id=${selectedUnit.id}&is_active=true`);
       setProducts(response.data);
       if (response.data.length === 0) {

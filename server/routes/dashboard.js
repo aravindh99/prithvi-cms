@@ -60,35 +60,47 @@ router.get('/summary', requireAdmin, async (req, res) => {
 
     bills.forEach((bill) => {
       const mode = bill.order?.payment_mode;
+      const status = bill.order?.payment_status;
+      const isPrinted = bill.is_printed;
       const amount = parseFloat(bill.amount || 0);
 
-      if (modes[mode]) {
-        modes[mode].count += 1;
-        modes[mode].total += amount;
+      // Only count \"valid\" bills:
+      // - CASH / FREE / UPI: must be PAID and printed
+      // - GUEST: PAID, printing not applicable
+      let includeForTotals = false;
+      if (mode === 'GUEST') {
+        includeForTotals = status === 'PAID';
+      } else if (mode === 'CASH' || mode === 'FREE' || mode === 'UPI') {
+        includeForTotals = status === 'PAID' && isPrinted;
       }
 
-      // Aggregate products for this bill
-      (bill.items || []).forEach((item) => {
-        const product = item.product;
-        if (!product) return;
+      if (modes[mode] && includeForTotals) {
+        modes[mode].count += 1;
+        modes[mode].total += amount;
 
-        const key = product.id;
-        const existing = productMap.get(key) || {
-          product_id: product.id,
-          name_en: product.name_en,
-          name_ta: product.name_ta,
-          totalQty: 0,
-          totalAmount: 0
-        };
+        // Aggregate products for this bill only when included
+        (bill.items || []).forEach((item) => {
+          const product = item.product;
+          if (!product) return;
 
-        const qty = parseFloat(item.quantity || 0);
-        const total = parseFloat(item.total_price || 0);
+          const key = product.id;
+          const existing = productMap.get(key) || {
+            product_id: product.id,
+            name_en: product.name_en,
+            name_ta: product.name_ta,
+            totalQty: 0,
+            totalAmount: 0
+          };
 
-        existing.totalQty += qty;
-        existing.totalAmount += total;
+          const qty = parseFloat(item.quantity || 0);
+          const total = parseFloat(item.total_price || 0);
 
-        productMap.set(key, existing);
-      });
+          existing.totalQty += qty;
+          existing.totalAmount += total;
+
+          productMap.set(key, existing);
+        });
+      }
     });
 
     const overall = Object.values(modes).reduce(
@@ -105,7 +117,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
       modes,
       overall,
       products,
-      billsCount: bills.length
+      billsCount: overall.count
     });
   } catch (error) {
     console.error('Dashboard summary error:', error);

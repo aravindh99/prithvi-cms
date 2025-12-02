@@ -5,7 +5,6 @@ import Layout from '../../components/Layout.jsx';
 import AdminNavbar from '../../components/AdminNavbar.jsx';
 import Loading from '../../components/Loading.jsx';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -80,22 +79,81 @@ const Dashboard = () => {
     fetchStats();
   }, [fetchStats]);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = () => {
     try {
-      const element = document.getElementById('dashboard-print-area');
-      if (!element) return;
+      if (!products || products.length === 0) {
+        alert('No product data to export for the selected filters.');
+        return;
+      }
 
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth - 10;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const leftMargin = 10;
+      let y = 10;
 
-      pdf.addImage(imgData, 'PNG', 5, 5, imgWidth, Math.min(imgHeight, pageHeight - 10));
-      pdf.save('dashboard-summary.pdf');
+      // Title
+      pdf.setFontSize(16);
+      pdf.text('Prithvi - Product Summary', leftMargin, y);
+      y += 8;
+
+      // Filter info
+      pdf.setFontSize(10);
+      pdf.text(`From: ${filters.start_date}  To: ${filters.end_date}`, leftMargin, y);
+      y += 5;
+
+      if (filters.unit_id) {
+        const unit = units.find((u) => String(u.id) === String(filters.unit_id));
+        if (unit) {
+          pdf.text(`Unit: ${unit.name}`, leftMargin, y);
+          y += 5;
+        }
+      }
+
+      if (filters.payment_mode) {
+        pdf.text(`Payment Mode: ${filters.payment_mode}`, leftMargin, y);
+        y += 5;
+      }
+
+      y += 5;
+
+      // Table header
+      pdf.setFontSize(11);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Product', leftMargin, y);
+      pdf.text('Qty', leftMargin + 90, y, { align: 'right' });
+      pdf.text('Amount', leftMargin + 120, y, { align: 'right' });
+      y += 4;
+      pdf.line(leftMargin, y, pageWidth - leftMargin, y);
+      y += 4;
+      pdf.setFont(undefined, 'normal');
+
+      // Rows
+      products.forEach((p) => {
+        const name = p.name_en || '';
+        const qty = String(p.totalQty ?? 0);
+        const amount = `Rs ${(p.totalAmount ?? 0).toFixed(2)}`;
+
+        // Simple line wrap for long product names
+        const maxNameWidth = 80;
+        const lines = pdf.splitTextToSize(name, maxNameWidth);
+
+        lines.forEach((line, idx) => {
+          if (y > 280) {
+            pdf.addPage();
+            y = 10;
+          }
+          if (idx === 0) {
+            pdf.text(line, leftMargin, y);
+            pdf.text(qty, leftMargin + 90, y, { align: 'right' });
+            pdf.text(amount, leftMargin + 120, y, { align: 'right' });
+          } else {
+            pdf.text(line, leftMargin, y);
+          }
+          y += 5;
+        });
+      });
+
+      pdf.save(`product-summary-${filters.start_date}-to-${filters.end_date}.pdf`);
     } catch (error) {
       console.error('PDF export error:', error);
       alert('Failed to export PDF. Please try again.');

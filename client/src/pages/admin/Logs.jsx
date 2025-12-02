@@ -6,7 +6,7 @@ import Loading from '../../components/Loading.jsx';
 import { FaEye, FaPrint, FaTrash } from 'react-icons/fa';
 
 const Logs = () => {
-  const [bills, setBills] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBill, setSelectedBill] = useState(null);
@@ -68,13 +68,13 @@ const Logs = () => {
 
       const response = await api.get(`/logs?${params.toString()}`);
       console.log('[Logs Frontend] Response:', { 
-        billsCount: response.data.bills?.length || 0, 
+        logsCount: response.data.logs?.length || 0, 
         total: response.data.total, 
         page: response.data.page,
         totalPages: response.data.totalPages 
       });
       
-      setBills(response.data.bills);
+      setLogs(response.data.logs || []);
       const serverPage = response.data.page;
       setPagination({
         total: response.data.total,
@@ -101,29 +101,6 @@ const Logs = () => {
     fetchBills();
   }, [fetchBills]);
 
-  const handleViewBill = async (billId) => {
-    try {
-      const response = await api.get(`/logs/${billId}`);
-      setSelectedBill(response.data);
-    } catch (error) {
-      console.error('Fetch bill details error:', error);
-      alert('Failed to load bill details.');
-    }
-  };
-
-  const handleRetryPrint = async (orderId, billId) => {
-    if (!confirm('Retry printing this bill?')) return;
-
-    try {
-      await api.post(`/orders/${orderId}/bills/${billId}/print`);
-      alert('Print command sent successfully!');
-      fetchBills();
-    } catch (error) {
-      console.error('Retry print error:', error);
-      alert(error.response?.data?.error || 'Print failed. Please check printer connection.');
-    }
-  };
-
   const handleDeleteBill = async (billId) => {
     if (!confirm('Are you sure you want to delete this bill? This action cannot be undone.')) return;
 
@@ -149,7 +126,7 @@ const Logs = () => {
     if (!confirm(confirmMessage)) return;
 
     // Double confirmation for safety
-    const doubleConfirm = confirm(`FINAL WARNING: You are about to permanently delete ${count} bill(s).\n\nType OK to confirm, or Cancel to abort.`);
+    const doubleConfirm = confirm(`FINAL WARNING: You are about to permanently delete ${count} bill(s).\n\nPress OK to confirm, or Cancel to abort.`);
     
     if (!doubleConfirm) return;
 
@@ -169,6 +146,29 @@ const Logs = () => {
     }
   };
 
+  const handleViewBill = async (billId) => {
+    try {
+      const response = await api.get(`/logs/${billId}`);
+      setSelectedBill(response.data);
+    } catch (error) {
+      console.error('Fetch bill details error:', error);
+      alert('Failed to load bill details.');
+    }
+  };
+
+  const handleRetryPrint = async (orderId, billId) => {
+    if (!confirm('Retry printing this bill?')) return;
+
+    try {
+      await api.post(`/orders/${orderId}/bills/${billId}/print`);
+      alert('Print command sent successfully!');
+      fetchBills();
+    } catch (error) {
+      console.error('Retry print error:', error);
+      alert(error.response?.data?.error || 'Print failed. Please check printer connection.');
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-IN');
   };
@@ -178,7 +178,7 @@ const Logs = () => {
     return new Date(dateString).toLocaleString('en-IN');
   };
 
-  if (loading && bills.length === 0) {
+  if (loading && logs.length === 0) {
     return (
       <Layout>
         <Loading />
@@ -267,39 +267,39 @@ const Logs = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {bills.map((bill) => (
-                    <tr key={bill.id} className="hover:bg-gray-50">
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{formatDate(bill.bill_date)}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{bill.order?.unit?.name || 'N/A'}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold text-gray-900">₹{parseFloat(bill.amount).toFixed(2)}</td>
+                  {logs.map((log) => (
+                    <tr key={`${log.id}-${log.item_id || 'noitem'}`} className="hover:bg-gray-50">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{formatDate(log.bill_date)}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{log.unit?.name || 'N/A'}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold text-gray-900">₹{parseFloat(log.line_total ?? log.amount ?? 0).toFixed(2)}</td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          bill.order?.payment_mode === 'CASH' ? 'bg-green-100 text-green-800' :
-                          bill.order?.payment_mode === 'UPI' ? 'bg-blue-100 text-blue-800' :
-                          bill.order?.payment_mode === 'FREE' ? 'bg-orange-100 text-orange-800' :
+                          log.payment_mode === 'CASH' ? 'bg-green-100 text-green-800' :
+                          log.payment_mode === 'UPI' ? 'bg-blue-100 text-blue-800' :
+                          log.payment_mode === 'FREE' ? 'bg-orange-100 text-orange-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {bill.order?.payment_mode || 'N/A'}
+                          {log.payment_mode || 'N/A'}
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
                         <span
                           className={`px-2 py-1 rounded text-xs font-semibold ${
-                            bill.order?.payment_status === 'PAID'
+                            log.payment_status === 'PAID'
                               ? 'bg-green-100 text-green-800'
-                              : bill.order?.payment_status === 'PENDING'
+                              : log.payment_status === 'PENDING'
                               ? 'bg-yellow-100 text-yellow-800'
-                              : bill.order?.payment_status
+                              : log.payment_status
                               ? 'bg-red-100 text-red-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >
-                          {bill.order?.payment_status || 'N/A'}
+                          {log.payment_status || 'N/A'}
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
-                        {bill.is_printed ? (
-                          <span className="text-green-600">{formatDateTime(bill.printed_at)}</span>
+                        {log.is_printed ? (
+                          <span className="text-green-600">{formatDateTime(log.printed_at)}</span>
                         ) : (
                           <span className="text-red-600">Not printed</span>
                         )}
@@ -307,21 +307,21 @@ const Logs = () => {
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                         <div className="flex gap-1 sm:gap-2">
                           <button
-                            onClick={() => handleViewBill(bill.id)}
+                            onClick={() => handleViewBill(log.id)}
                             className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded hover:bg-blue-600 flex items-center gap-1 text-xs sm:text-sm"
                           >
                             <FaEye /> <span className="hidden sm:inline">View</span>
                           </button>
-                          {!bill.is_printed && bill.order?.payment_mode !== 'GUEST' && (
+                          {!log.is_printed && log.payment_mode !== 'GUEST' && (
                             <button
-                              onClick={() => handleRetryPrint(bill.order_id, bill.id)}
+                              onClick={() => handleRetryPrint(log.order_id, log.id)}
                               className="bg-green-500 text-white px-2 sm:px-3 py-1 rounded hover:bg-green-600 flex items-center gap-1 text-xs sm:text-sm"
                             >
                               <FaPrint /> <span className="hidden sm:inline">Print</span>
                             </button>
                           )}
                           <button
-                            onClick={() => handleDeleteBill(bill.id)}
+                            onClick={() => handleDeleteBill(log.id)}
                             className="bg-red-500 text-white px-2 sm:px-3 py-1 rounded hover:bg-red-600 flex items-center gap-1 text-xs sm:text-sm"
                           >
                             <FaTrash /> <span className="hidden sm:inline">Delete</span>

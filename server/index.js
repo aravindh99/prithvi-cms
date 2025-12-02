@@ -15,6 +15,7 @@ import orderRoutes from './routes/orders.js';
 import logRoutes from './routes/logs.js';
 import userRoutes from './routes/users.js';
 import dashboardRoutes from './routes/dashboard.js';
+import printerRoutes from './routes/printer.js';
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/printer', printerRoutes);
 
 // Serve React app in production (SPA routing)
 // Must be after API routes
