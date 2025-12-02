@@ -20,6 +20,7 @@ const Products = () => {
     is_active: true,
     image: null
   });
+  const [submitting, setSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
   const fetchProducts = useCallback(async () => {
@@ -104,6 +105,8 @@ const Products = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('name_en', formData.name_en);
@@ -130,6 +133,8 @@ const Products = () => {
     } catch (error) {
       console.error('Save product error:', error);
       alert('Failed to save product. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -181,7 +186,7 @@ const Products = () => {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">Products</h1>
             <button
               onClick={() => handleOpenModal()}
-              className="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+              className="relative z-10 w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 cursor-pointer"
             >
               <FaPlus /> Add Product
             </button>
@@ -309,9 +314,12 @@ const Products = () => {
                   <div className="flex gap-4 pt-4">
                     <button
                       type="submit"
-                      className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+                      disabled={submitting}
+                      className={`flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold cursor-pointer ${
+                        submitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'
+                      }`}
                     >
-                      {editingProduct ? 'Update' : 'Create'}
+                      {submitting ? 'Saving...' : editingProduct ? 'Update' : 'Create'}
                     </button>
                     <button
                       type="button"
