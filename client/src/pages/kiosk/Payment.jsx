@@ -237,6 +237,47 @@ const Payment = () => {
                 <img src={upiIcon} alt="UPI" className="h-8 sm:h-10 md:h-12" />
                 <span className="text-base sm:text-lg md:text-xl font-semibold text-gray-800">UPI / Razorpay</span>
               </button>
+              
+              <div className="text-xs sm:text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200">
+                <p className="mb-2">By proceeding, you agree to our:</p>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  <a 
+                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/terms" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Terms
+                  </a>
+                  <span className="text-gray-400">•</span>
+                  <a 
+                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Privacy
+                  </a>
+                  <span className="text-gray-400">•</span>
+                  <a 
+                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/refund" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Refund
+                  </a>
+                  <span className="text-gray-400">•</span>
+                  <a 
+                    href="http://merchant.razorpay.com/policy/RnCjoGYkkfDPui/shipping" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    Shipping
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

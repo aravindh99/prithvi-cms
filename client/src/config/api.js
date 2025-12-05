@@ -1,15 +1,9 @@
 import axios from 'axios';
 
-// API base URL:
-// - If VITE_API_URL is set, use that.
-// - Otherwise, use 192.168.1.171 for production and localhost:5000 in development.
-const DEFAULT_API_URL = import.meta.env.PROD
-  ? 'http://192.168.1.171:5000/api'
-  : 'http://localhost:5000/api';
 
-const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+const API_URL = 'https://cms.prithviinnerwears.in/api';
 
-// Base URL without `/api` suffix, useful for assets like /uploads/...
+
 export const API_BASE_URL = API_URL.replace(/\/api$/, '');
 
 const api = axios.create({

@@ -71,7 +71,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
       if (mode === 'GUEST') {
         includeForTotals = status === 'PAID';
       } else if (mode === 'CASH' || mode === 'FREE' || mode === 'UPI') {
-        includeForTotals = status === 'PAID' && isPrinted;
+        includeForTotals =  isPrinted;
       }
 
       if (modes[mode] && includeForTotals) {

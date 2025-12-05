@@ -398,6 +398,7 @@ router.post('/:id/verify-razorpay', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Missing payment details' });
     }
 
+    // Load order + associations inside transaction for verification
     const order = await Order.findByPk(req.params.id, {
       include: [{
         model: OrderDayBill,
@@ -456,83 +457,90 @@ router.post('/:id/verify-razorpay', requireAuth, async (req, res) => {
       });
     }
 
-    // Print all day bills (UPI mode - print only after payment verification)
-    // For UPI: If payment succeeded but printing fails, save order anyway (admin can retry print)
-    const printResults = [];
-    let allPrintsSucceeded = true;
-    
-    for (const dayBill of order.dayBills) {
-      try {
-        // One ticket per product for this day
-        for (const item of dayBill.items) {
-          const singleProduct = [{
-            product: item.product,
-            unit_price: item.unit_price,
-            quantity: item.quantity,
-            total_price: item.total_price
-          }];
-
-          await printBill(dayBill, order.unit, order, singleProduct);
-
-          printResults.push({
-            billId: dayBill.id,
-            productId: item.product_id,
-            success: true
-          });
-        }
-
-        await dayBill.update({
-          is_printed: true,
-          printed_at: new Date()
-        }, { transaction });
-      } catch (printError) {
-        console.error(`Print error for bill ${dayBill.id}:`, printError);
-        printResults.push({ billId: dayBill.id, success: false, error: printError.message });
-        allPrintsSucceeded = false;
-        // Don't update is_printed - keep it as false so admin can retry later
-        // Continue processing other bills
-      }
-    }
-
-    // Update order to PAID status (payment succeeded)
-    // Save even if printing failed - admin can retry printing from logs page
+    // Verification succeeded – mark order as PAID inside transaction
     await order.update({
       payment_mode: 'UPI',
       payment_status: 'PAID'
     }, { transaction });
 
     await transaction.commit();
-    
-    // Reload order with all associations to ensure we have the latest data
-    await order.reload({
+
+    // Reload order without transaction to return fresh data
+    const freshOrder = await Order.findByPk(order.id, {
       include: [{
         model: OrderDayBill,
-        as: 'dayBills'
+        as: 'dayBills',
+        include: [{
+          model: OrderItem,
+          as: 'items',
+          include: [{
+            model: Product,
+            as: 'product'
+          }]
+        }]
       }, {
         model: Unit,
         as: 'unit'
       }]
     });
-    
-    console.log(`[Razorpay] Order ${order.id} saved: payment=PAID, mode=UPI, prints_succeeded=${allPrintsSucceeded}, bills_count=${order.dayBills?.length || 0}`);
 
-    // If all prints succeeded, return success
-    if (allPrintsSucceeded) {
-      res.json({
-        success: true,
-        order,
-        printResults
-      });
-    } else {
-      // Payment succeeded but some prints failed - return error but order is saved
-      res.status(500).json({ 
-        error: 'Payment successful, but printing failed for some bills. Order has been saved. You can retry printing from the admin logs page.',
-        order,
-        printResults
-      });
-    }
+    // Respond immediately so kiosk can redirect to success page
+    res.json({
+      success: true,
+      order: freshOrder,
+      printResults: [] // printing is handled asynchronously
+    });
+
+    // Kick off background printing AFTER response so UI isn't blocked
+    (async () => {
+      try {
+        const printResults = [];
+        let allPrintsSucceeded = true;
+
+        for (const dayBill of freshOrder.dayBills) {
+          try {
+            // One ticket per product for this day
+            for (const item of dayBill.items) {
+              const singleProduct = [{
+                product: item.product,
+                unit_price: item.unit_price,
+                quantity: item.quantity,
+                total_price: item.total_price
+              }];
+
+              await printBill(dayBill, freshOrder.unit, freshOrder, singleProduct);
+
+              printResults.push({
+                billId: dayBill.id,
+                productId: item.product_id,
+                success: true
+              });
+            }
+
+            await dayBill.update({
+              is_printed: true,
+              printed_at: new Date()
+            });
+          } catch (printError) {
+            console.error(`Print error for bill ${dayBill.id}:`, printError);
+            printResults.push({ billId: dayBill.id, success: false, error: printError.message });
+            allPrintsSucceeded = false;
+            // Don't update is_printed - keep it as false so admin can retry later
+            // Continue processing other bills
+          }
+        }
+
+        console.log(`[Razorpay] Order ${freshOrder.id} saved: payment=PAID, mode=UPI, prints_succeeded=${allPrintsSucceeded}, bills_count=${freshOrder.dayBills?.length || 0}`);
+      } catch (bgError) {
+        console.error('Background print error:', bgError);
+      }
+    })();
   } catch (error) {
-    await transaction.rollback();
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error('Rollback error in verify-razorpay:', rollbackError);
+    }
     console.error('Verify Razorpay error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
