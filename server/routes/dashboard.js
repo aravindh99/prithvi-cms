@@ -57,6 +57,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
     };
 
     const productMap = new Map(); // key: product_id, value: { name_en, name_ta, totalQty, totalAmount }
+    const dailyMap = new Map(); // key: bill_date, value: { count, amount }
 
     bills.forEach((bill) => {
       const mode = bill.order?.payment_mode;
@@ -77,6 +78,11 @@ router.get('/summary', requireAdmin, async (req, res) => {
       if (modes[mode] && includeForTotals) {
         modes[mode].count += 1;
         modes[mode].total += amount;
+
+        const current = dailyMap.get(bill.bill_date) || { count: 0, amount: 0 };
+        current.count += 1;
+        current.amount += amount;
+        dailyMap.set(bill.bill_date, current);
 
         // Aggregate products for this bill only when included
         (bill.items || []).forEach((item) => {
@@ -112,11 +118,15 @@ router.get('/summary', requireAdmin, async (req, res) => {
     );
 
     const products = Array.from(productMap.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+    const dailySeries = Array.from(dailyMap.entries())
+      .map(([date, values]) => ({ date, ...values }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     res.json({
       modes,
       overall,
       products,
+      dailySeries,
       billsCount: overall.count
     });
   } catch (error) {

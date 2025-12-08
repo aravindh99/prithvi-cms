@@ -7,6 +7,7 @@ import Layout from '../../components/Layout.jsx';
 import Loading from '../../components/Loading.jsx';
 import { FaCheckCircle, FaSignOutAlt } from 'react-icons/fa';
 import noImage from '../../assets/No_image.png';
+import { useTheme } from '../../context/ThemeContext.jsx';
 
 const ProductSelection = () => {
   const [products, setProducts] = useState([]);
@@ -15,6 +16,7 @@ const ProductSelection = () => {
   const { selectedUnit, selectedProducts, toggleProduct } = useOrder();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { isDark } = useTheme();
 
   const handleLogout = async () => {
     await logout();
@@ -76,10 +78,10 @@ const ProductSelection = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 bg-gray-50">
+      <div className={`min-h-screen p-4 sm:p-6 md:p-8 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">Select Products</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Select Products</h1>
             <div className="flex gap-3 w-full sm:w-auto">
               <button
                 onClick={handleLogout}
@@ -90,7 +92,9 @@ const ProductSelection = () => {
               <button
                 onClick={handleContinue}
                 disabled={selectedProducts.length === 0}
-                className="flex-1 sm:flex-none bg-blue-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className={`flex-1 sm:flex-none px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg md:text-xl font-semibold rounded-lg hover:translate-y-[-1px] transition-colors ${
+                  isDark ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 disabled:bg-slate-700' : 'bg-blue-600 text-white hover:bg-blue-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Continue ({selectedProducts.length} selected)
               </button>
@@ -99,11 +103,11 @@ const ProductSelection = () => {
 
           {error ? (
             <div className="text-center py-8 sm:py-12 md:py-16">
-              <p className="text-red-600 text-lg sm:text-xl md:text-2xl">{error}</p>
+              <p className="text-red-500 text-lg sm:text-xl md:text-2xl">{error}</p>
             </div>
           ) : products.length === 0 ? (
             <div className="text-center py-8 sm:py-12 md:py-16">
-              <p className="text-gray-600 text-lg sm:text-xl md:text-2xl">No products available</p>
+              <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'} text-lg sm:text-xl md:text-2xl`}>No products available</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
@@ -113,16 +117,22 @@ const ProductSelection = () => {
                   <button
                     key={product.id}
                     onClick={() => toggleProduct(product)}
-                    className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all relative border-2 ${
-                      isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-transparent'
+                    className={`rounded-lg overflow-hidden hover:shadow-lg transition-all relative border-2 ${
+                      isSelected
+                        ? isDark
+                          ? 'border-amber-400 ring-2 ring-amber-300/70 bg-amber-400/10'
+                          : 'border-blue-500 ring-2 ring-blue-300 bg-blue-50'
+                        : isDark
+                          ? 'border-slate-800 bg-slate-900/70 hover:border-amber-300/60'
+                          : 'border-transparent bg-white shadow-md'
                     }`}
                   >
                     {isSelected && (
-                      <div className="absolute top-1 right-1 bg-blue-500 rounded-full p-1 z-10">
+                      <div className={`absolute top-1 right-1 rounded-full p-1 z-10 ${isDark ? 'bg-amber-400' : 'bg-blue-500'}`}>
                         <FaCheckCircle className="text-white text-sm" />
                       </div>
                     )}
-                    <div className="aspect-square bg-gray-100 flex items-center justify-center h-24">
+                    <div className={`aspect-square flex items-center justify-center h-24 ${isDark ? 'bg-slate-800' : 'bg-gray-100'}`}>
                       <img
                         src={product.image_path ? `${API_BASE_URL}${product.image_path}` : noImage}
                         alt={product.name_en}
@@ -133,10 +143,10 @@ const ProductSelection = () => {
                       />
                     </div>
                     <div className="p-2">
-                      <div className="text-xs font-semibold text-gray-800 mb-1 line-clamp-2">
+                      <div className={`text-xs font-semibold mb-1 line-clamp-2 ${isDark ? 'text-slate-100' : 'text-gray-800'}`}>
                         {product.name_en} | {product.name_ta}
                       </div>
-                      <div className="text-sm font-bold text-blue-600">₹{parseFloat(product.price).toFixed(2)}</div>
+                      <div className={`text-sm font-bold ${isDark ? 'text-amber-300' : 'text-blue-600'}`}>₹{parseFloat(product.price).toFixed(2)}</div>
                     </div>
                   </button>
                 );

@@ -18,6 +18,10 @@ import Units from './pages/admin/Units.jsx';
 import Logs from './pages/admin/Logs.jsx';
 import Users from './pages/admin/Users.jsx';
 import AdminCheckout from './pages/admin/AdminCheckout.jsx';
+import Terms from './pages/policies/Terms.jsx';
+import Privacy from './pages/policies/Privacy.jsx';
+import Refund from './pages/policies/Refund.jsx';
+import Shipping from './pages/policies/Shipping.jsx';
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -77,6 +81,12 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
+      {/* Policy Pages */}
+      <Route path="/policies/terms" element={<Terms />} />
+      <Route path="/policies/privacy" element={<Privacy />} />
+      <Route path="/policies/refund" element={<Refund />} />
+      <Route path="/policies/shipping" element={<Shipping />} />
       <Route
         path="/admin/products"
         element={

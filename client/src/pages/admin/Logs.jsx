@@ -4,6 +4,7 @@ import Layout from '../../components/Layout.jsx';
 import AdminNavbar from '../../components/AdminNavbar.jsx';
 import Loading from '../../components/Loading.jsx';
 import { FaEye, FaPrint, FaTrash } from 'react-icons/fa';
+import { useTheme } from '../../context/ThemeContext.jsx';
 
 const Logs = () => {
   const [logs, setLogs] = useState([]);
@@ -35,6 +36,7 @@ const Logs = () => {
     page: 1,
     totalPages: 1
   });
+  const { isDark } = useTheme();
 
   const fetchUnits = useCallback(async () => {
     try {
@@ -189,10 +191,10 @@ const Logs = () => {
   return (
     <Layout>
       <AdminNavbar />
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 bg-gray-50">
+      <div className={`min-h-screen p-4 sm:p-6 md:p-8 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">Order Logs</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Order Logs</h1>
             <button
               onClick={handleDeleteAll}
               className="bg-red-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
@@ -201,33 +203,33 @@ const Logs = () => {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 md:mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Filters</h2>
+          <div className={`rounded-2xl border p-4 sm:p-6 mb-4 sm:mb-6 md:mb-8 ${isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'}`}>
+            <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Filters</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Start Date</label>
+                <label className="block text-sm font-medium mb-2">Start Date</label>
                 <input
                   type="date"
                   value={filters.start_date}
                   onChange={(e) => setFilters({ ...filters, start_date: e.target.value, page: 1 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                 />
               </div>
               <div>
-                <label className="block text-gray-700 font-medium mb-2">End Date</label>
+                <label className="block text-sm font-medium mb-2">End Date</label>
                 <input
                   type="date"
                   value={filters.end_date}
                   onChange={(e) => setFilters({ ...filters, end_date: e.target.value, page: 1 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                 />
               </div>
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Unit</label>
+                <label className="block text-sm font-medium mb-2">Unit</label>
                 <select
                   value={filters.unit_id}
                   onChange={(e) => setFilters({ ...filters, unit_id: e.target.value, page: 1 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                 >
                   <option value="">All Units</option>
                   {units.map(unit => (
@@ -236,11 +238,11 @@ const Logs = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-gray-700 font-medium mb-2">Payment Mode</label>
+                <label className="block text-sm font-medium mb-2">Payment Mode</label>
                 <select
                   value={filters.payment_mode}
                   onChange={(e) => setFilters({ ...filters, payment_mode: e.target.value, page: 1 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                 >
                   <option value="">All Modes</option>
                   <option value="CASH">Cash</option>
@@ -252,63 +254,65 @@ const Logs = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'}`}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px]">
-                <thead className="bg-gray-100">
+                <thead className={isDark ? 'bg-slate-800/80' : 'bg-gray-100'}>
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Bill Date</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Unit</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Amount</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Payment Mode</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Payment Status</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Printed At</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Actions</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Bill Date</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Unit</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Amount</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Payment Mode</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Payment Status</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Printed At</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className={isDark ? 'divide-y divide-slate-800' : 'divide-y divide-gray-200'}>
                   {logs.map((log) => (
-                    <tr key={`${log.id}-${log.item_id || 'noitem'}`} className="hover:bg-gray-50">
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{formatDate(log.bill_date)}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{log.unit?.name || 'N/A'}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold text-gray-900">₹{parseFloat(log.line_total ?? log.amount ?? 0).toFixed(2)}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                    <tr key={`${log.id}-${log.item_id || 'noitem'}`} className={isDark ? 'hover:bg-slate-800/60' : 'hover:bg-gray-50'}>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">{formatDate(log.bill_date)}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">{log.unit?.name || 'N/A'}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-semibold">₹{parseFloat(log.line_total ?? log.amount ?? 0).toFixed(2)}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          log.payment_mode === 'CASH' ? 'bg-green-100 text-green-800' :
-                          log.payment_mode === 'UPI' ? 'bg-blue-100 text-blue-800' :
-                          log.payment_mode === 'FREE' ? 'bg-orange-100 text-orange-800' :
-                          'bg-gray-100 text-gray-800'
+                          log.payment_mode === 'CASH' ? (isDark ? 'bg-emerald-500/20 text-emerald-200' : 'bg-green-100 text-green-800') :
+                          log.payment_mode === 'UPI' ? (isDark ? 'bg-blue-500/20 text-blue-200' : 'bg-blue-100 text-blue-800') :
+                          log.payment_mode === 'FREE' ? (isDark ? 'bg-amber-500/20 text-amber-200' : 'bg-orange-100 text-orange-800') :
+                          isDark ? 'bg-slate-700 text-slate-100' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {log.payment_mode || 'N/A'}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                         <span
                           className={`px-2 py-1 rounded text-xs font-semibold ${
                             log.payment_status === 'PAID'
-                              ? 'bg-green-100 text-green-800'
+                              ? isDark ? 'bg-emerald-500/20 text-emerald-200' : 'bg-green-100 text-green-800'
                               : log.payment_status === 'PENDING'
-                              ? 'bg-yellow-100 text-yellow-800'
+                              ? isDark ? 'bg-amber-500/20 text-amber-200' : 'bg-yellow-100 text-yellow-800'
                               : log.payment_status
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
+                              ? isDark ? 'bg-rose-500/20 text-rose-200' : 'bg-red-100 text-red-800'
+                              : isDark ? 'bg-slate-700 text-slate-100' : 'bg-gray-100 text-gray-800'
                           }`}
                         >
                           {log.payment_status || 'N/A'}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                         {log.is_printed ? (
-                          <span className="text-green-600">{formatDateTime(log.printed_at)}</span>
+                          <span className="text-emerald-400">{formatDateTime(log.printed_at)}</span>
                         ) : (
-                          <span className="text-red-600">Not printed</span>
+                          <span className="text-rose-400">Not printed</span>
                         )}
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                         <div className="flex gap-1 sm:gap-2">
                           <button
                             onClick={() => handleViewBill(log.id)}
-                            className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded hover:bg-blue-600 flex items-center gap-1 text-xs sm:text-sm"
+                            className={`px-2 sm:px-3 py-1 rounded flex items-center gap-1 text-xs sm:text-sm ${
+                              isDark ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-blue-500 text-white hover:bg-blue-600'
+                            }`}
                           >
                             <FaEye /> <span className="hidden sm:inline">View</span>
                           </button>
@@ -335,22 +339,26 @@ const Logs = () => {
             </div>
 
             {pagination.totalPages > 1 && (
-              <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
-                <div className="text-xs sm:text-sm text-gray-700">
+              <div className={`px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 ${isDark ? 'bg-slate-800/60' : 'bg-gray-50'}`}>
+                <div className="text-xs sm:text-sm">
                   Page {pagination.page} of {pagination.totalPages} (Total: {pagination.total})
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setFilters({ ...filters, page: Math.max(1, pagination.page - 1) })}
                     disabled={pagination.page <= 1}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm hover:bg-gray-50"
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDark ? 'bg-slate-900 border border-slate-700 hover:bg-slate-800' : 'bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setFilters({ ...filters, page: Math.min(pagination.totalPages, pagination.page + 1) })}
                     disabled={pagination.page >= pagination.totalPages}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm hover:bg-gray-50"
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDark ? 'bg-slate-900 border border-slate-700 hover:bg-slate-800' : 'bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
                     Next
                   </button>

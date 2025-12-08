@@ -4,9 +4,11 @@ import Layout from '../../components/Layout.jsx';
 import AdminNavbar from '../../components/AdminNavbar.jsx';
 import Loading from '../../components/Loading.jsx';
 import { FaEdit, FaTrash, FaPlus, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import { useTheme } from '../../context/ThemeContext.jsx';
 import noImage from '../../assets/No_image.png';
 
 const Products = () => {
+  const { isDark } = useTheme();
   const [products, setProducts] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -180,13 +182,15 @@ const Products = () => {
   return (
     <Layout>
       <AdminNavbar />
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 bg-gray-50">
+      <div className={`min-h-screen p-4 sm:p-6 md:p-8 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">Products</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Products</h1>
             <button
               onClick={() => handleOpenModal()}
-              className="relative z-10 w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 cursor-pointer"
+              className={`relative z-10 w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg flex items-center justify-center gap-2 cursor-pointer ${
+                isDark ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950' : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
               <FaPlus /> Add Product
             </button>
@@ -194,8 +198,11 @@ const Products = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {products.map((product) => (
-              <div key={product.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
+              <div
+                key={product.id}
+                className={`${isDark ? 'bg-slate-900/70 border border-slate-800 shadow-black/20' : 'bg-white shadow-lg'} rounded-xl overflow-hidden`}
+              >
+                <div className={`aspect-video ${isDark ? 'bg-slate-800' : 'bg-gray-100'} flex items-center justify-center overflow-hidden`}>
                   <img
                     src={product.image_path ? `${API_BASE_URL}${product.image_path}` : noImage}
                     alt={product.name_en}
@@ -206,22 +213,26 @@ const Products = () => {
                   />
                 </div>
                 <div className="p-3 sm:p-4">
-                  <div className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 mb-1">
+                  <div className="text-base sm:text-lg md:text-xl font-semibold mb-1">
                     {product.name_en} | {product.name_ta}
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold text-blue-600 mb-2">₹{parseFloat(product.price).toFixed(2)}</div>
-                  <div className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Unit: {product.unit?.name}</div>
+                  <div className="text-xl sm:text-2xl font-bold text-amber-300 mb-2">₹{parseFloat(product.price).toFixed(2)}</div>
+                  <div className={`${isDark ? 'text-slate-400' : 'text-gray-600'} text-xs sm:text-sm mb-3 sm:mb-4`}>Unit: {product.unit?.name}</div>
                   <div className="flex gap-1 sm:gap-2">
                     <button
                       onClick={() => handleOpenModal(product)}
-                      className="flex-1 bg-blue-500 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                      className="flex-1 bg-indigo-500 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-indigo-600 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm"
                     >
                       <FaEdit /> <span className="hidden sm:inline">Edit</span>
                     </button>
                     <button
                       onClick={() => handleToggleActive(product)}
                       className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg flex items-center justify-center ${
-                        product.is_active ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                        product.is_active
+                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                          : isDark
+                            ? 'bg-slate-800 text-slate-100 hover:bg-slate-700'
+                            : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
                       }`}
                     >
                       {product.is_active ? <FaToggleOn className="text-xl sm:text-2xl" /> : <FaToggleOff className="text-xl sm:text-2xl" />}
@@ -239,49 +250,49 @@ const Products = () => {
           </div>
 
           {showModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-              <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-4 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+              <div className={`${isDark ? 'bg-slate-900 border border-slate-800' : 'bg-white'} rounded-xl shadow-2xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-4 max-h-[90vh] overflow-y-auto`}>
+                <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">
                   {editingProduct ? 'Edit Product' : 'Add Product'}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Name (English)</label>
+                    <label className="block font-medium mb-2">Name (English)</label>
                     <input
                       type="text"
                       value={formData.name_en}
                       onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Name (Tamil)</label>
+                    <label className="block font-medium mb-2">Name (Tamil)</label>
                     <input
                       type="text"
                       value={formData.name_ta}
                       onChange={(e) => setFormData({ ...formData, name_ta: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Price</label>
+                    <label className="block font-medium mb-2">Price</label>
                     <input
                       type="number"
                       step="0.01"
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Unit</label>
+                    <label className="block font-medium mb-2">Unit</label>
                     <select
                       value={formData.unit_id}
                       onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                       required
                     >
                       <option value="">Select Unit</option>
@@ -291,12 +302,12 @@ const Products = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Image</label>
+                    <label className="block font-medium mb-2">Image</label>
                     <input
                       type="file"
                       accept="image/jpeg,image/png"
                       onChange={handleImageChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white border-gray-300'}`}
                     />
                     {imagePreview && (
                       <img src={imagePreview} alt="Preview" className="mt-2 h-32 object-cover rounded-lg" />
@@ -307,24 +318,26 @@ const Products = () => {
                       type="checkbox"
                       checked={formData.is_active}
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      className="w-5 h-5"
+                      className="w-5 h-5 text-emerald-400 focus:ring-emerald-400 border-slate-600 rounded bg-slate-900/70"
                     />
-                    <label className="text-gray-700 font-medium">Active</label>
+                    <label className="font-medium">Active</label>
                   </div>
                   <div className="flex gap-4 pt-4">
                     <button
                       type="submit"
                       disabled={submitting}
-                      className={`flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold cursor-pointer ${
-                        submitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'
-                      }`}
+                      className={`flex-1 px-6 py-3 rounded-lg font-semibold cursor-pointer ${
+                        isDark ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      } ${submitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       {submitting ? 'Saving...' : editingProduct ? 'Update' : 'Create'}
                     </button>
                     <button
                       type="button"
                       onClick={handleCloseModal}
-                      className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 font-semibold"
+                      className={`flex-1 px-6 py-3 rounded-lg font-semibold ${
+                        isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                      }`}
                     >
                       Cancel
                     </button>

@@ -4,6 +4,7 @@ import Layout from '../../components/Layout.jsx';
 import AdminNavbar from '../../components/AdminNavbar.jsx';
 import Loading from '../../components/Loading.jsx';
 import { FaEdit, FaTrash, FaPlus, FaUserShield, FaUser } from 'react-icons/fa';
+import { useTheme } from '../../context/ThemeContext.jsx';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -122,6 +123,8 @@ const Users = () => {
     }
   };
 
+  const { isDark } = useTheme();
+
   if (loading) {
     return (
       <Layout>
@@ -133,54 +136,60 @@ const Users = () => {
   return (
     <Layout>
       <AdminNavbar />
-      <div className="min-h-screen p-4 sm:p-6 md:p-8 bg-gray-50">
+      <div className={`min-h-screen p-4 sm:p-6 md:p-8 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800">Users</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Users</h1>
             <button
               onClick={() => handleOpenModal()}
-              className="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+              className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg flex items-center justify-center gap-2 ${
+                isDark ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300 shadow-emerald-500/30 shadow-lg' : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               <FaPlus /> Add User
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden overflow-x-auto">
+          <div className={`rounded-xl overflow-hidden overflow-x-auto border ${
+            isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
+          }`}>
             <table className="w-full min-w-[640px]">
-              <thead className="bg-gray-100">
+              <thead className={isDark ? 'bg-slate-800/80' : 'bg-gray-100'}>
                 <tr>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Username</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Role</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Unit</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Created</th>
-                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">Actions</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Username</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Role</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Unit</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Created</th>
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className={isDark ? 'divide-y divide-slate-800' : 'divide-y divide-gray-200'}>
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">{user.username}</td>
+                  <tr key={user.id} className={isDark ? 'hover:bg-slate-800/60' : 'hover:bg-gray-50'}>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">{user.username}</td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                       <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit ${
                         user.role === 'admin' 
-                          ? 'bg-purple-100 text-purple-800' 
-                          : 'bg-blue-100 text-blue-800'
+                          ? isDark ? 'bg-purple-500/20 text-purple-200' : 'bg-purple-100 text-purple-800'
+                          : isDark ? 'bg-blue-500/20 text-blue-200' : 'bg-blue-100 text-blue-800'
                       }`}>
                         {user.role === 'admin' ? <FaUserShield /> : <FaUser />}
                         <span className="hidden sm:inline">{user.role === 'admin' ? 'Admin' : 'User'}</span>
                       </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                       {user.unit ? `${user.unit.name} (${user.unit.code})` : user.role === 'admin' ? 'N/A' : 'Not assigned'}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                       {new Date(user.createdAt).toLocaleDateString('en-IN')}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
                       <div className="flex gap-1 sm:gap-2">
                         <button
                           onClick={() => handleOpenModal(user)}
-                          className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded hover:bg-blue-600 flex items-center gap-1 text-xs sm:text-sm"
+                          className={`px-2 sm:px-3 py-1 rounded flex items-center gap-1 text-xs sm:text-sm ${
+                            isDark ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-blue-500 text-white hover:bg-blue-600'
+                          }`}
                         >
                           <FaEdit /> <span className="hidden sm:inline">Edit</span>
                         </button>
@@ -200,35 +209,37 @@ const Users = () => {
 
           {showModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-              <div className="bg-white rounded-xl shadow-2xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-4">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              <div className={`rounded-xl shadow-2xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-4 border ${
+                isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white text-gray-900'
+              }`}>
+                <h2 className="text-2xl font-bold mb-6">
                   {editingUser ? 'Edit User' : 'Add User'}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Username</label>
+                    <label className="block font-medium mb-2">Username</label>
                     <input
                       type="text"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'border-gray-300'}`}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">
+                    <label className="block font-medium mb-2">
                       Password {editingUser && '(leave blank to keep current)'}
                     </label>
                     <input
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'border-gray-300'}`}
                       required={!editingUser}
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-2">Role</label>
+                    <label className="block font-medium mb-2">Role</label>
                     <select
                       value={formData.role}
                       onChange={(e) => {
@@ -239,7 +250,7 @@ const Users = () => {
                           unit_id: newRole === 'admin' ? '' : formData.unit_id
                         });
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'border-gray-300'}`}
                       required
                     >
                       <option value="user">User</option>
@@ -248,11 +259,11 @@ const Users = () => {
                   </div>
                   {formData.role === 'user' && (
                     <div>
-                      <label className="block text-gray-700 font-medium mb-2">Unit <span className="text-red-500">*</span></label>
+                      <label className="block font-medium mb-2">Unit <span className="text-red-500">*</span></label>
                       <select
                         value={formData.unit_id}
                         onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        className={`w-full px-4 py-2 rounded-lg border ${isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'border-gray-300'}`}
                         required
                       >
                         <option value="">Select Unit</option>
@@ -265,14 +276,18 @@ const Users = () => {
                   <div className="flex gap-4 pt-4">
                     <button
                       type="submit"
-                      className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+                      className={`flex-1 px-6 py-3 rounded-lg font-semibold ${
+                        isDark ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300' : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
                     >
                       {editingUser ? 'Update' : 'Create'}
                     </button>
                     <button
                       type="button"
                       onClick={handleCloseModal}
-                      className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 font-semibold"
+                      className={`flex-1 px-6 py-3 rounded-lg font-semibold ${
+                        isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                      }`}
                     >
                       Cancel
                     </button>

@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 
+//const API_URL = 'http://localhost:5000/api';
 const API_URL = 'https://cms.prithviinnerwears.in/api';
-
 
 export const API_BASE_URL = API_URL.replace(/\/api$/, '');
 
