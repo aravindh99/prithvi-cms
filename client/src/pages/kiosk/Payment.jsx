@@ -16,6 +16,7 @@ const Payment = () => {
   const [loading, setLoading] = useState(false);
   const [orderId, setOrderId] = useState(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [countDown, setCountDown] = useState(3);
   const { isDark } = useTheme();
 
   const handleLogout = async () => {
@@ -57,6 +58,19 @@ const Payment = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    let timer;
+    if (countDown > 0) {
+      timer = setTimeout(() => {
+        setCountDown((prev) => prev - 1);
+      }, 1000);
+    } else if (countDown === 0 && razorpayLoaded) {
+      // Auto trigger payment when countdown hits 0
+      handleUPIPayment();
+    }
+    return () => clearTimeout(timer);
+  }, [countDown, razorpayLoaded]);
 
   const createOrder = async () => {
     try {
@@ -117,19 +131,19 @@ const Payment = () => {
             console.error('Payment verification error:', error);
             console.error('Error response:', error.response?.data);
             console.error('Error status:', error.response?.status);
-            
+
             // Check if payment succeeded but printing failed
             if (error.response?.status === 500 && error.response?.data?.order) {
               // Payment succeeded but printing failed - order is saved, admin can retry print
               console.log('[Payment] Payment succeeded but printing failed. Order saved:', error.response.data.order.id);
               setOrderId(null);
               setLoading(false);
-              navigate('/kiosk/success', { 
-                state: { 
-                  order: error.response.data.order, 
+              navigate('/kiosk/success', {
+                state: {
+                  order: error.response.data.order,
                   printResults: error.response.data.printResults,
-                  printWarning: true 
-                } 
+                  printWarning: true
+                }
               });
             } else {
               // Payment verification failed - order marked as FAILED
@@ -150,7 +164,7 @@ const Payment = () => {
           color: '#2563eb'
         },
         modal: {
-          ondismiss: async function() {
+          ondismiss: async function () {
             // User cancelled payment - mark order as FAILED
             await cancelPendingOrder(orderId);
             setOrderId(null);
@@ -189,9 +203,8 @@ const Payment = () => {
             <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={handleBack}
-                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base font-medium ${
-                  isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-gray-600 text-white hover:bg-gray-700'
-                }`}
+                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg flex items-center justify-center gap-2 text-sm sm:text-base font-medium ${isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
               >
                 <FaArrowLeft /> Back
               </button>
@@ -233,8 +246,16 @@ const Payment = () => {
 
             <div className="space-y-3 sm:space-y-4">
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Select Payment Mode</h2>
-              
-              <button
+
+              <div className="text-center py-4">
+                <p className="text-lg font-semibold animate-pulse">
+                  Redirecting to payment gateway in {countDown}...
+                </p>
+                <p className="text-sm text-gray-500 mt-2">Please do not refresh the page.</p>
+              </div>
+
+              {/* Manual button commented out as per requirement for auto-redirect */}
+              {/* <button
                 onClick={handleUPIPayment}
                 className={`w-full rounded-xl p-4 sm:p-6 transition-colors flex items-center justify-center gap-3 sm:gap-4 border-2 ${
                   isDark ? 'bg-slate-900/70 border-amber-400 text-slate-100 hover:bg-slate-800' : 'bg-white border-blue-500 hover:bg-blue-50'
@@ -242,41 +263,41 @@ const Payment = () => {
               >
                 <img src={upiIcon} alt="UPI" className="h-8 sm:h-10 md:h-12" />
                 <span className="text-base sm:text-lg md:text-xl font-semibold">UPI / Razorpay</span>
-              </button>
-              
+              </button> */}
+
               <div className={`text-xs sm:text-sm mt-4 pt-4 border-t ${isDark ? 'border-slate-800 text-slate-300' : 'border-gray-200 text-gray-600'}`}>
                 <p className="mb-2">By proceeding, you agree to our:</p>
                 <div className="flex flex-wrap gap-2 sm:gap-3">
-                  <a 
-                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/terms" 
-                    target="_blank" 
+                  <a
+                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/terms"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className={`${isDark ? 'text-amber-300 hover:text-amber-200' : 'text-blue-600 hover:text-blue-800'} hover:underline`}
                   >
                     Terms
                   </a>
                   <span className={isDark ? 'text-slate-600' : 'text-gray-400'}>•</span>
-                  <a 
-                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/privacy" 
-                    target="_blank" 
+                  <a
+                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/privacy"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className={`${isDark ? 'text-amber-300 hover:text-amber-200' : 'text-blue-600 hover:text-blue-800'} hover:underline`}
                   >
                     Privacy
                   </a>
                   <span className={isDark ? 'text-slate-600' : 'text-gray-400'}>•</span>
-                  <a 
-                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/refund" 
-                    target="_blank" 
+                  <a
+                    href="https://merchant.razorpay.com/policy/RnCjoGYkkfDPui/refund"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className={`${isDark ? 'text-amber-300 hover:text-amber-200' : 'text-blue-600 hover:text-blue-800'} hover:underline`}
                   >
                     Refund
                   </a>
                   <span className={isDark ? 'text-slate-600' : 'text-gray-400'}>•</span>
-                  <a 
-                    href="http://merchant.razorpay.com/policy/RnCjoGYkkfDPui/shipping" 
-                    target="_blank" 
+                  <a
+                    href="http://merchant.razorpay.com/policy/RnCjoGYkkfDPui/shipping"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className={`${isDark ? 'text-amber-300 hover:text-amber-200' : 'text-blue-600 hover:text-blue-800'} hover:underline`}
                   >

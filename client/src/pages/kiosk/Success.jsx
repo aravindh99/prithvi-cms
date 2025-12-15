@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useOrder } from '../../context/OrderContext.jsx';
 import Layout from '../../components/Layout.jsx';
@@ -10,11 +11,27 @@ const Success = () => {
   const { resetOrder } = useOrder();
   const { order, printResults, printWarning } = location.state || {};
   const { isDark } = useTheme();
+  const [countDown, setCountDown] = useState(3);
 
   const handleReturn = () => {
     resetOrder();
     navigate('/kiosk/products');
   };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountDown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleReturn();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <Layout>
@@ -24,7 +41,7 @@ const Success = () => {
           <h1 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 ${printWarning ? 'text-yellow-400' : 'text-emerald-300'}`}>
             {printWarning ? 'Payment Successful!' : 'Order Successful!'}
           </h1>
-          
+
           {printWarning && (
             <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-400/40 text-amber-200' : 'bg-yellow-50 border border-yellow-200 text-yellow-800'}`}>
               <p className="text-base sm:text-lg font-semibold">
@@ -35,7 +52,7 @@ const Success = () => {
               </p>
             </div>
           )}
-          
+
           {order && (
             <div className="mb-4 sm:mb-6">
               <p className="text-base sm:text-lg md:text-xl mb-2">Order ID: {order.id}</p>
@@ -62,11 +79,10 @@ const Success = () => {
 
           <button
             onClick={handleReturn}
-            className={`w-full sm:w-auto px-8 sm:px-12 py-3 sm:py-4 text-base sm:text-lg md:text-xl font-semibold rounded-lg transition-colors ${
-              isDark ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            className={`w-full sm:w-auto px-8 sm:px-12 py-3 sm:py-4 text-base sm:text-lg md:text-xl font-semibold rounded-lg transition-colors ${isDark ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
           >
-            Return to Start
+            Return to Start ({countDown}s)
           </button>
         </div>
       </div>

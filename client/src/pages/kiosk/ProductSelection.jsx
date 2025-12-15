@@ -83,12 +83,7 @@ const ProductSelection = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 md:mb-8">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Select Products</h1>
             <div className="flex gap-3 w-full sm:w-auto">
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
-              >
-                <FaSignOutAlt /> Logout
-              </button>
+              
               <button
                 onClick={handleContinue}
                 disabled={selectedProducts.length === 0}
@@ -97,6 +92,12 @@ const ProductSelection = () => {
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Continue ({selectedProducts.length} selected)
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
+              >
+                <FaSignOutAlt /> Logout
               </button>
             </div>
           </div>

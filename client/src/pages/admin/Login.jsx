@@ -85,7 +85,7 @@ const AdminLogin = () => {
                   <h1 className="text-2xl sm:text-3xl font-bold">Login</h1>
                   <p className="text-sm text-slate-400 mt-1">Enter your admin credentials</p>
                 </div>
-                <img src={prithviLogo} alt="Prithvi" className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border border-white/10 shadow-lg" />
+                <img src={prithviLogo} alt="Prithvi" className="h-12 w-auto sm:h-14 sm:w-14 rounded-full border border-white/10 shadow-lg" />
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
