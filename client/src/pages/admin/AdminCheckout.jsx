@@ -3,8 +3,9 @@ import Layout from '../../components/Layout.jsx';
 import AdminNavbar from '../../components/AdminNavbar.jsx';
 import Loading from '../../components/Loading.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import api from '../../config/api.js';
+import api, { API_BASE_URL } from '../../config/api.js';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import noImage from '../../assets/No_image.png';
 
 // Helper to format a JS Date as YYYY-MM-DD using local time (no UTC shift)
 const toLocalDateString = (date) => {
@@ -269,18 +270,17 @@ const AdminCheckout = () => {
     <Layout>
       <AdminNavbar />
       <div
-        className={`min-h-screen p-4 sm:p-6 md:p-8 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}
+        className={`min-h-screen mr-40 p-2 sm:p-2 md:p-4 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 md:mb-8">
             Admin Checkout
           </h1>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div
-              className={`lg:col-span-2 rounded-2xl border p-4 sm:p-6 ${
-                isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
-              }`}
+              className={`lg:col-span-2 rounded-2xl border p-4 sm:p-6 ${isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
+                }`}
             >
               <div className="mb-4">
                 <label className="block text-sm font-semibold mb-2">
@@ -289,11 +289,10 @@ const AdminCheckout = () => {
                 <select
                   value={selectedUnitId || ''}
                   onChange={(e) => setSelectedUnitId(e.target.value ? parseInt(e.target.value) : null)}
-                  className={`w-full px-3 py-2 rounded-lg border ${
-                    isDark
-                      ? 'bg-slate-900/70 border-slate-700 text-slate-100 focus:ring-amber-400/50 focus:border-amber-400'
-                      : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
-                  } text-sm`}
+                  className={`w-full px-3 py-2 rounded-lg border ${isDark
+                    ? 'bg-slate-900/70 border-slate-700 text-slate-100 focus:ring-amber-400/50 focus:border-amber-400'
+                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+                    } text-sm`}
                 >
                   <option value="">-- Select Unit --</option>
                   {units.map((unit) => (
@@ -311,30 +310,44 @@ const AdminCheckout = () => {
               ) : products.length === 0 ? (
                 <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>No products found for this unit.</p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 max-h-96 overflow-y-auto pr-2">
                   {products.map((product) => {
                     const selected = selectedProducts.some((p) => p.id === product.id);
                     return (
                       <button
                         key={product.id}
                         onClick={() => toggleProduct(product)}
-                        className={`rounded-lg p-2 text-xs sm:text-sm text-left border ${
-                          selected
-                            ? isDark
-                              ? 'border-amber-400 bg-amber-400/10 shadow-amber-500/20 shadow'
-                              : 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                            : isDark
-                              ? 'border-slate-800 bg-slate-900/70 hover:border-amber-300/70'
-                              : 'border-gray-200 bg-white hover:border-blue-200'
-                        } transition-all`}
+                        className={`rounded-lg p-2 text-xs sm:text-sm text-left border-2 transition-all ${selected
+                          ? isDark
+                            ? 'border-amber-400 bg-amber-400/10 shadow-amber-500/20 shadow-md ring-2 ring-amber-400/50'
+                            : 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 shadow-md'
+                          : isDark
+                            ? 'border-slate-800 bg-slate-900/70 hover:border-amber-300/70 hover:shadow-md'
+                            : 'border-gray-200 bg-white hover:border-blue-200 hover:shadow-md'
+                          }`}
                       >
-                        <div className="font-semibold">{product.name_en}</div>
+                        <div className={`mb-2 rounded-lg overflow-hidden aspect-square ${isDark ? 'bg-slate-800' : 'bg-gray-100'}`}>
+                          <img
+                            src={product.image_path ? `${API_BASE_URL}${product.image_path}` : noImage}
+                            alt={product.name_en}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = noImage;
+                            }}
+                          />
+                        </div>
+                        <div className={`font-semibold line-clamp-2 min-h-[2rem] ${isDark ? 'text-slate-100' : 'text-gray-800'}`}>{product.name_en}</div>
                         {product.name_ta && (
-                          <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{product.name_ta}</div>
+                          <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-gray-500'} line-clamp-1`}>{product.name_ta}</div>
                         )}
                         <div className={`${isDark ? 'text-amber-300' : 'text-blue-600'} font-semibold mt-1`}>
                           ₹{parseFloat(product.price).toFixed(2)}
                         </div>
+                        {selected && (
+                          <div className={`mt-1 text-center text-[10px] px-2 py-0.5 rounded-full ${isDark ? 'bg-amber-400 text-slate-950' : 'bg-blue-600 text-white'}`}>
+                            Selected
+                          </div>
+                        )}
                       </button>
                     );
                   })}
@@ -342,47 +355,48 @@ const AdminCheckout = () => {
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="flex flex-col w-120">
               <div
-                className={`rounded-2xl border p-4 sm:p-6 ${
-                  isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
-                }`}
+                className={`rounded-2xl border p-4 sm:p-6 ${isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
+                  }`}
               >
-                <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
+                <h2 className="text-lg sm:text-xl font-bold mb-4">
                   Dates
                 </h2>
-                <div className="flex flex-col gap-2 mb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={previousMonth}
-                        className={`text-base font-bold px-2 py-1 ${isDark ? 'text-slate-200 hover:text-white' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        ‹
-                      </button>
-                      <span className="text-sm font-semibold">
-                        {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                      </span>
-                      <button
-                        onClick={nextMonth}
-                        className={`text-base font-bold px-2 py-1 ${isDark ? 'text-slate-200 hover:text-white' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        ›
-                      </button>
-                    </div>
-                    <label className={`flex items-center gap-1 text-[10px] sm:text-xs ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>
-                      <input
-                        type="checkbox"
-                        checked={selectAllMonth}
-                        onChange={handleToggleSelectAll}
-                        className="w-3 h-3 accent-amber-400"
-                      />
-                      <span>Select all (no Sundays)</span>
-                    </label>
-                  </div>
+
+                {/* Month Navigation */}
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <button
+                    onClick={previousMonth}
+                    className={`text-xl font-bold px-3 py-1 rounded-lg transition-colors ${isDark ? 'text-slate-200 hover:bg-slate-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}
+                  >
+                    ‹
+                  </button>
+                  <span className="text-sm sm:text-base font-semibold min-w-[140px] text-center">
+                    {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                  </span>
+                  <button
+                    onClick={nextMonth}
+                    className={`text-xl font-bold px-3 py-1 rounded-lg transition-colors ${isDark ? 'text-slate-200 hover:bg-slate-800 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}
+                  >
+                    ›
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1 text-[10px] sm:text-xs mb-2">
+                {/* Select All Checkbox */}
+                <div className="flex items-center justify-center mb-3 ">
+                  <label className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-200' : 'text-gray-700'} cursor-pointer`}>
+                    <input
+                      type="checkbox"
+                      checked={selectAllMonth}
+                      onChange={handleToggleSelectAll}
+                      className="w-7 h-7 accent-amber-400 cursor-pointer mt-1"
+                    />
+                    <span>Select all</span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 text-xs sm:text-sm mb-2">
                   {dayNames.map((day) => (
                     <div
                       key={day}
@@ -407,19 +421,18 @@ const AdminCheckout = () => {
                         key={dateStr}
                         onClick={() => !sunday && toggleDate(date)}
                         disabled={sunday}
-                        className={`aspect-square rounded text-[10px] sm:text-xs font-semibold transition-all ${
-                          sunday
+                        className={`aspect-square rounded-lg text-xs sm:text-sm font-semibold transition-all ${sunday
+                          ? isDark
+                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : selected
                             ? isDark
-                              ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : selected
-                            ? isDark
-                              ? 'bg-amber-400 text-slate-950 shadow-lg'
-                              : 'bg-blue-600 text-white'
+                              ? 'bg-amber-400 text-slate-950 shadow-lg ring-2 ring-amber-400/50'
+                              : 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-300'
                             : isDark
-                              ? 'bg-slate-900 text-slate-100 hover:bg-slate-800'
-                              : 'bg-gray-50 text-gray-700 hover:bg-blue-100'
-                        }`}
+                              ? 'bg-slate-900 text-slate-100 hover:bg-slate-800 hover:ring-2 hover:ring-amber-400/30'
+                              : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:ring-2 hover:ring-blue-200'
+                          }`}
                       >
                         {date.getDate()}
                       </button>
@@ -427,15 +440,14 @@ const AdminCheckout = () => {
                   })}
                 </div>
 
-                <div className={`mt-2 text-xs ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+                <div className={`mt-3 text-xs sm:text-sm ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
                   Selected days: <span className="font-semibold">{selectedDates.length}</span>
                 </div>
               </div>
 
               <div
-                className={`rounded-2xl border p-4 sm:p-6 ${
-                  isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
-                }`}
+                className={`rounded-2xl border p-4 sm:p-6 ${isDark ? 'bg-slate-900/70 border-slate-800 shadow-black/30 shadow-lg' : 'bg-white border-gray-200 shadow-lg'
+                  }`}
               >
                 <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
                   Payment Mode
@@ -479,11 +491,10 @@ const AdminCheckout = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={loading || submitting}
-                  className={`w-full mt-4 text-sm sm:text-base px-4 py-2 sm:py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
-                    isDark
-                      ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-amber-500/30 shadow-lg'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                  className={`w-full mt-4 text-sm sm:text-base px-4 py-2 sm:py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all ${isDark
+                    ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-amber-500/30 shadow-lg'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                 >
                   {submitting ? 'Processing…' : 'Create & Print Bill'}
                 </button>

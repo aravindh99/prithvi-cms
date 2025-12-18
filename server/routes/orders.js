@@ -6,6 +6,107 @@ import { printBill } from '../services/printer.js';
 
 const router = express.Router();
 
+// Helper function to print with retry logic
+async function printWithRetry(dayBill, unit, order, product, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await printBill(dayBill, unit, order, product);
+      return { success: true, attempt };
+    } catch (error) {
+      console.error(`Print attempt ${attempt}/${maxRetries} failed:`, error.message);
+      if (attempt < maxRetries) {
+        // Wait longer between retries
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+  return { success: false, error: 'Max retries exceeded' };
+}
+
+// Helper function to print all bills for an order
+async function printOrderBills(order, transaction = null) {
+  const printResults = [];
+  let allPrintsSucceeded = true;
+  let totalTicketsPrinted = 0;
+
+  for (const dayBill of order.dayBills) {
+    try {
+      // Print each product the number of times specified by quantity
+      for (let itemIndex = 0; itemIndex < dayBill.items.length; itemIndex++) {
+        const item = dayBill.items[itemIndex];
+        const singleProduct = [{
+          product: item.product,
+          unit_price: item.unit_price,
+          quantity: 1,  // Always 1 per ticket
+          total_price: item.unit_price  // Price for 1 item
+        }];
+
+        // Print 'quantity' times for this product
+        for (let i = 0; i < item.quantity; i++) {
+          const printResult = await printWithRetry(dayBill, order.unit, order, singleProduct);
+
+          printResults.push({
+            billId: dayBill.id,
+            billDate: dayBill.bill_date,
+            productId: item.product_id,
+            productName: item.product.name_en,
+            ticketNumber: i + 1,
+            totalTickets: item.quantity,
+            success: printResult.success,
+            attempt: printResult.attempt,
+            error: printResult.error
+          });
+
+          if (printResult.success) {
+            totalTicketsPrinted++;
+          } else {
+            allPrintsSucceeded = false;
+          }
+
+          // Add delay between prints to prevent printer buffer overflow
+          if (i < item.quantity - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        // Slightly longer delay between different products (skip for last product)
+        if (itemIndex < dayBill.items.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      // Mark bill as printed if all tickets succeeded
+      const billPrintResults = printResults.filter(r => r.billId === dayBill.id);
+      const billAllSuccess = billPrintResults.every(r => r.success);
+
+      if (billAllSuccess) {
+        const updateData = {
+          is_printed: true,
+          printed_at: new Date()
+        };
+
+        if (transaction) {
+          await dayBill.update(updateData, { transaction });
+        } else {
+          await dayBill.update(updateData);
+        }
+      }
+
+    } catch (printError) {
+      console.error(`Print error for bill ${dayBill.id}:`, printError);
+      printResults.push({
+        billId: dayBill.id,
+        billDate: dayBill.bill_date,
+        success: false,
+        error: printError.message
+      });
+      allPrintsSucceeded = false;
+    }
+  }
+
+  return { printResults, allPrintsSucceeded, totalTicketsPrinted };
+}
+
 // Create order
 router.post('/', requireAuth, async (req, res) => {
   try {
@@ -57,17 +158,49 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     // Get products and calculate per-day total
-    const products = await Product.findAll({
+    // First, get identifying unique IDs to query the database efficiently
+    const uniqueProductIds = [...new Set(product_ids)];
+
+    const foundProducts = await Product.findAll({
       where: {
-        id: product_ids,
-        unit_id: targetUnitId,
-        is_active: true
+        id: uniqueProductIds
       }
     });
 
-    if (products.length !== product_ids.length) {
-      return res.status(400).json({ error: 'Some products are invalid or inactive' });
+    // Check if all unique product IDs exist
+    if (foundProducts.length !== uniqueProductIds.length) {
+      const foundIds = foundProducts.map(p => p.id);
+      const missingIds = uniqueProductIds.filter(id => !foundIds.includes(id));
+      console.error(`[Order Creation] Missing product IDs: ${missingIds.join(', ')}`);
+      return res.status(400).json({
+        error: `Products not found: ${missingIds.join(', ')}`
+      });
     }
+
+    // Validate active status and unit on the unique products found
+    // Check for inactive products
+    const inactiveProducts = foundProducts.filter(p => !p.is_active);
+    if (inactiveProducts.length > 0) {
+      const inactiveNames = inactiveProducts.map(p => `${p.name_en} (ID: ${p.id})`).join(', ');
+      console.error(`[Order Creation] Inactive products: ${inactiveNames}`);
+      return res.status(400).json({
+        error: `These products are inactive: ${inactiveNames}`
+      });
+    }
+
+    // Check for products from wrong unit
+    const wrongUnitProducts = foundProducts.filter(p => p.unit_id !== targetUnitId);
+    if (wrongUnitProducts.length > 0) {
+      const wrongUnitNames = wrongUnitProducts.map(p => `${p.name_en} (ID: ${p.id}, belongs to unit ${p.unit_id})`).join(', ');
+      console.error(`[Order Creation] Products from wrong unit: ${wrongUnitNames}. Target unit: ${targetUnitId}`);
+      return res.status(400).json({
+        error: `These products don't belong to the selected unit: ${wrongUnitNames.split(', ').map(n => n.split(' (')[0]).join(', ')}`
+      });
+    }
+
+    // All validations passed. Now reconstruct the full list of products (including duplicates)
+    // based on the incoming product_ids array order and count.
+    const products = product_ids.map(id => foundProducts.find(p => p.id === id));
 
     const perDayTotal = products.reduce((sum, product) => sum + parseFloat(product.price), 0);
     const grandTotal = perDayTotal * selected_dates.length;
@@ -161,43 +294,7 @@ router.post('/:id/pay-cash', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Print all day bills FIRST (CASH mode - print immediately)
-    const printResults = [];
-    let allPrintsSucceeded = true;
-    
-    for (const dayBill of order.dayBills) {
-      try {
-        // One ticket per product for this day
-        for (const item of dayBill.items) {
-          const singleProduct = [{
-            product: item.product,
-            unit_price: item.unit_price,
-            quantity: item.quantity,
-            total_price: item.total_price
-          }];
-
-          await printBill(dayBill, order.unit, order, singleProduct);
-
-          printResults.push({
-            billId: dayBill.id,
-            productId: item.product_id,
-            success: true
-          });
-        }
-
-        await dayBill.update({
-          is_printed: true,
-          printed_at: new Date()
-        }, { transaction });
-      } catch (printError) {
-        console.error(`Print error for bill ${dayBill.id}:`, printError);
-        printResults.push({ billId: dayBill.id, success: false, error: printError.message });
-        allPrintsSucceeded = false;
-        // Keep is_printed=false so admin can see \"Not printed\" and retry later
-      }
-    }
-
-    // Mark CASH payment as successful regardless of print failures
+    // Mark CASH payment as successful first
     await order.update({
       payment_mode: 'CASH',
       payment_status: 'PAID'
@@ -205,17 +302,24 @@ router.post('/:id/pay-cash', requireAuth, async (req, res) => {
 
     await transaction.commit();
 
+    // Print all day bills AFTER transaction committed (CASH mode - print immediately)
+    const { printResults, allPrintsSucceeded, totalTicketsPrinted } = await printOrderBills(order);
+
+    console.log(`[CASH] Order ${order.id}: Printed ${totalTicketsPrinted} tickets, all_success=${allPrintsSucceeded}`);
+
     if (allPrintsSucceeded) {
       res.json({
         success: true,
         order,
-        printResults
+        printResults,
+        totalTicketsPrinted
       });
     } else {
       res.status(500).json({
         error: 'Payment successful, but printing failed for some bills. You can retry printing from the admin logs page.',
         order,
-        printResults
+        printResults,
+        totalTicketsPrinted
       });
     }
   } catch (error) {
@@ -258,43 +362,7 @@ router.post('/:id/pay-free', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Print all day bills FIRST (FREE mode - print immediately)
-    const printResults = [];
-    let allPrintsSucceeded = true;
-    
-    for (const dayBill of order.dayBills) {
-      try {
-        // One ticket per product for this day
-        for (const item of dayBill.items) {
-          const singleProduct = [{
-            product: item.product,
-            unit_price: item.unit_price,
-            quantity: item.quantity,
-            total_price: item.total_price
-          }];
-
-          await printBill(dayBill, order.unit, order, singleProduct);
-
-          printResults.push({
-            billId: dayBill.id,
-            productId: item.product_id,
-            success: true
-          });
-        }
-
-        await dayBill.update({
-          is_printed: true,
-          printed_at: new Date()
-        }, { transaction });
-      } catch (printError) {
-        console.error(`Print error for bill ${dayBill.id}:`, printError);
-        printResults.push({ billId: dayBill.id, success: false, error: printError.message });
-        allPrintsSucceeded = false;
-        // Keep is_printed=false so admin can see \"Not printed\" and retry later
-      }
-    }
-
-    // Mark FREE payment as successful regardless of print failures
+    // Mark FREE payment as successful first
     await order.update({
       payment_mode: 'FREE',
       payment_status: 'PAID'
@@ -302,17 +370,24 @@ router.post('/:id/pay-free', requireAuth, async (req, res) => {
 
     await transaction.commit();
 
+    // Print all day bills AFTER transaction committed (FREE mode - print immediately)
+    const { printResults, allPrintsSucceeded, totalTicketsPrinted } = await printOrderBills(order);
+
+    console.log(`[FREE] Order ${order.id}: Printed ${totalTicketsPrinted} tickets, all_success=${allPrintsSucceeded}`);
+
     if (allPrintsSucceeded) {
       res.json({
         success: true,
         order,
-        printResults
+        printResults,
+        totalTicketsPrinted
       });
     } else {
       res.status(500).json({
         error: 'Payment successful, but printing failed for some bills. You can retry printing from the admin logs page.',
         order,
-        printResults
+        printResults,
+        totalTicketsPrinted
       });
     }
   } catch (error) {
@@ -494,43 +569,9 @@ router.post('/:id/verify-razorpay', requireAuth, async (req, res) => {
     // Kick off background printing AFTER response so UI isn't blocked
     (async () => {
       try {
-        const printResults = [];
-        let allPrintsSucceeded = true;
+        const { printResults, allPrintsSucceeded, totalTicketsPrinted } = await printOrderBills(freshOrder);
 
-        for (const dayBill of freshOrder.dayBills) {
-          try {
-            // One ticket per product for this day
-            for (const item of dayBill.items) {
-              const singleProduct = [{
-                product: item.product,
-                unit_price: item.unit_price,
-                quantity: item.quantity,
-                total_price: item.total_price
-              }];
-
-              await printBill(dayBill, freshOrder.unit, freshOrder, singleProduct);
-
-              printResults.push({
-                billId: dayBill.id,
-                productId: item.product_id,
-                success: true
-              });
-            }
-
-            await dayBill.update({
-              is_printed: true,
-              printed_at: new Date()
-            });
-          } catch (printError) {
-            console.error(`Print error for bill ${dayBill.id}:`, printError);
-            printResults.push({ billId: dayBill.id, success: false, error: printError.message });
-            allPrintsSucceeded = false;
-            // Don't update is_printed - keep it as false so admin can retry later
-            // Continue processing other bills
-          }
-        }
-
-        console.log(`[Razorpay] Order ${freshOrder.id} saved: payment=PAID, mode=UPI, prints_succeeded=${allPrintsSucceeded}, bills_count=${freshOrder.dayBills?.length || 0}`);
+        console.log(`[UPI] Order ${freshOrder.id}: payment=PAID, printed=${totalTicketsPrinted} tickets, all_success=${allPrintsSucceeded}, bills_count=${freshOrder.dayBills?.length || 0}`);
       } catch (bgError) {
         console.error('Background print error:', bgError);
       }
@@ -593,60 +634,108 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
 // Retry print single bill
 router.post('/:orderId/bills/:billId/print', requireAuth, async (req, res) => {
+  try {
+    const order = await Order.findByPk(req.params.orderId, {
+      include: [{
+        model: Unit,
+        as: 'unit'
+      }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const dayBill = await OrderDayBill.findByPk(req.params.billId, {
+      include: [{
+        model: OrderItem,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'product'
+        }]
+      }]
+    });
+
+    if (!dayBill || dayBill.order_id !== order.id) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    if (order.payment_mode === 'GUEST') {
+      return res.status(400).json({ error: 'Cannot print guest orders' });
+    }
+
+    const printResults = [];
+    let allPrintsSucceeded = true;
+    let totalTicketsPrinted = 0;
+
     try {
-      const order = await Order.findByPk(req.params.orderId, {
-        include: [{
-          model: Unit,
-          as: 'unit'
-        }]
-      });
+      // Print each product the number of times specified by quantity
+      for (const item of dayBill.items) {
+        const singleProduct = [{
+          product: item.product,
+          unit_price: item.unit_price,
+          quantity: 1,  // Always 1 per ticket
+          total_price: item.unit_price  // Price for 1 item
+        }];
 
-      if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
-      }
+        // Print 'quantity' times for this product
+        for (let i = 0; i < item.quantity; i++) {
+          const printResult = await printWithRetry(dayBill, order.unit, order, singleProduct);
 
-      const dayBill = await OrderDayBill.findByPk(req.params.billId, {
-        include: [{
-          model: OrderItem,
-          as: 'items',
-          include: [{
-            model: Product,
-            as: 'product'
-          }]
-        }]
-      });
+          printResults.push({
+            billId: dayBill.id,
+            productId: item.product_id,
+            productName: item.product.name_en,
+            ticketNumber: i + 1,
+            totalTickets: item.quantity,
+            success: printResult.success,
+            attempt: printResult.attempt,
+            error: printResult.error
+          });
 
-      if (!dayBill || dayBill.order_id !== order.id) {
-        return res.status(404).json({ error: 'Bill not found' });
-      }
+          if (printResult.success) {
+            totalTicketsPrinted++;
+          } else {
+            allPrintsSucceeded = false;
+          }
 
-      if (order.payment_mode === 'GUEST') {
-        return res.status(400).json({ error: 'Cannot print guest orders' });
-      }
-
-      try {
-        // One ticket per product for this day bill
-        for (const item of dayBill.items) {
-          const singleProduct = [{
-            product: item.product,
-            unit_price: item.unit_price,
-            quantity: item.quantity,
-            total_price: item.total_price
-          }];
-
-          await printBill(dayBill, order.unit, order, singleProduct);
+          // Add delay between prints
+          if (i < item.quantity - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
-        
+
+        // Delay between different products
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      if (allPrintsSucceeded) {
         await dayBill.update({
           is_printed: true,
           printed_at: new Date()
         });
 
-        res.json({ success: true });
-      } catch (printError) {
-        console.error('Print error:', printError);
-        res.status(500).json({ error: 'Print failed: ' + printError.message });
+        res.json({
+          success: true,
+          printResults,
+          totalTicketsPrinted
+        });
+      } else {
+        res.status(500).json({
+          error: 'Some prints failed',
+          printResults,
+          totalTicketsPrinted
+        });
       }
+    } catch (printError) {
+      console.error('Print error:', printError);
+      res.status(500).json({
+        error: 'Print failed: ' + printError.message,
+        printResults,
+        totalTicketsPrinted
+      });
+    }
   } catch (error) {
     console.error('Retry print error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -654,4 +743,3 @@ router.post('/:orderId/bills/:billId/print', requireAuth, async (req, res) => {
 });
 
 export default router;
-

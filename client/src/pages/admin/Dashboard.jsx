@@ -17,7 +17,6 @@ const Dashboard = () => {
     guestCount: 0
   });
   const [products, setProducts] = useState([]);
-  const [dailySeries, setDailySeries] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const toLocalDateString = (date) => {
@@ -54,7 +53,7 @@ const Dashboard = () => {
       if (filters.payment_mode) params.append('payment_mode', filters.payment_mode);
 
       const response = await api.get(`/dashboard/summary?${params.toString()}`);
-      const { modes, overall, products: productSummary, billsCount, dailySeries: series = [] } = response.data;
+      const { modes, overall, products: productSummary, billsCount } = response.data;
 
       setStats({
         totalBills: billsCount,
@@ -65,7 +64,6 @@ const Dashboard = () => {
         guestCount: modes.GUEST?.count || 0
       });
       setProducts(productSummary || []);
-      setDailySeries(series || []);
     } catch (error) {
       console.error('Fetch stats error:', error);
     } finally {
@@ -162,34 +160,18 @@ const Dashboard = () => {
     }
   };
 
-  const donutData = useMemo(() => {
-    const total = products.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-    const items = [...products]
-      .sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0))
-      .slice(0, 4);
-    const topSum = items.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-    if (total - topSum > 0) {
-      items.push({ name_en: 'Other', totalAmount: total - topSum });
-    }
-    const palette = ['#f97316', '#22d3ee', '#a855f7', '#38bdf8', '#fcd34d'];
-    return {
-      total,
-      items: items.map((p, idx) => ({
-        label: p.name_en || 'Product',
-        value: p.totalAmount || 0,
-        color: palette[idx % palette.length]
-      }))
-    };
+  const barData = useMemo(() => {
+    if (!products.length) return { max: 1, columns: [] };
+    const sorted = [...products].sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+    const max = Math.max(...sorted.map((p) => p.totalAmount || 0), 1);
+    // Always spread across 2–3 columns to avoid a long single stack
+    const columnCount = sorted.length > 9 ? 3 : 2;
+    const columns = Array.from({ length: columnCount }, () => []);
+    sorted.forEach((item, idx) => {
+      columns[idx % columnCount].push(item);
+    });
+    return { max, columns };
   }, [products]);
-
-  const lineData = useMemo(() => {
-    if (!dailySeries || !dailySeries.length) return [];
-    return dailySeries.map((d) => ({
-      label: d.date,
-      value: d.amount || 0,
-      count: d.count || 0
-    }));
-  }, [dailySeries]);
 
   if (loading) {
     return (
@@ -208,149 +190,6 @@ const Dashboard = () => {
       {children}
     </div>
   );
-
-  const MiniLineChart = ({ data }) => {
-    if (!data || data.length === 0) {
-      return <div className="text-sm text-slate-400">No data for selected range.</div>;
-    }
-    const width = 480;
-    const height = 200;
-    const padding = 24;
-    const maxY = Math.max(...data.map((d) => d.value), 1);
-    const minY = 0;
-    const step = Math.max(1, Math.ceil(data.length / 10)); // reduce label crowding
-
-    const points = data
-      .map((d, idx) => {
-        const x = padding + (idx / Math.max(data.length - 1, 1)) * (width - padding * 2);
-        const y = height - padding - ((d.value - minY) / (maxY - minY)) * (height - padding * 2);
-        return `${x},${y}`;
-      })
-      .join(' ');
-
-    return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
-        <defs>
-          <linearGradient id="lineGradient" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#f97316" stopOpacity="0.1" />
-          </linearGradient>
-        </defs>
-        <path
-          d={`M${padding},${height - padding} L${points} L${width - padding},${height - padding} Z`}
-          fill="url(#lineGradient)"
-          opacity="0.5"
-        />
-        <polyline
-          fill="none"
-          stroke="#fbbf24"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          points={points}
-        />
-        {data.map((d, idx) => {
-          const x = padding + (idx / Math.max(data.length - 1, 1)) * (width - padding * 2);
-          const y = height - padding - ((d.value - minY) / (maxY - minY)) * (height - padding * 2);
-          const dayNum = new Date(d.label).getDate();
-          const showLabel = idx % step === 0 || idx === data.length - 1 || idx === 0;
-          return (
-            <g key={d.label}>
-              <circle cx={x} cy={y} r="4" fill="#f97316" />
-              {showLabel && (
-                <text
-                  x={x}
-                  y={height - 6}
-                  textAnchor="middle"
-                  className="text-[9px]"
-                  fill={isDark ? '#cbd5e1' : '#1e293b'}
-                >
-                  {dayNum}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        {/* Month labels on extremes */}
-        {data.length > 0 && (
-          <>
-            <text
-              x={padding -20}
-              y={height - 6}
-              textAnchor="start"
-              className="text-[9px]"
-              fill={isDark ? '#cbd5e1' : '#1e293b'}
-            >
-              {new Date(data[0].label).toLocaleDateString(undefined, { month: 'short' })}
-            </text>
-            <text
-              x={width - padding + 20}
-              y={height - 6}
-              textAnchor="end"
-              className="text-[9px]"
-              fill={isDark ? '#cbd5e1' : '#1e293b'}
-            >
-              {new Date(data[data.length - 1].label).toLocaleDateString(undefined, { month: 'short' })}
-            </text>
-          </>
-        )}
-        <text
-          x={padding}
-          y={padding - 8}
-          className="text-xs font-semibold"
-          fill={isDark ? '#cbd5e1' : '#0f172a'}
-        >
-          Revenue trend (selected range)
-        </text>
-      </svg>
-    );
-  };
-
-  const DonutChart = ({ data }) => {
-    if (!data || !data.items.length || !data.total) {
-      return <div className="text-sm text-slate-400">No product mix for this range.</div>;
-    }
-    const radius = 16;
-    const circumference = 2 * Math.PI * radius;
-    let offset = 0;
-
-    return (
-      <div className="flex items-center gap-4 sm:gap-6">
-        <svg viewBox="0 0 42 42" className="w-36 h-36 -rotate-90">
-          {data.items.map((item) => {
-            const value = item.value || 0;
-            const pct = (value / data.total) * 100;
-            const dash = (pct / 100) * circumference;
-            const circle = (
-              <circle
-                key={item.label}
-                cx="21"
-                cy="21"
-                r={radius}
-                fill="transparent"
-                stroke={item.color}
-                strokeWidth="8"
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={-offset}
-                strokeLinecap="butt"
-              />
-            );
-            offset += dash;
-            return circle;
-          })}
-        </svg>
-        <div className="space-y-2">
-          {data.items.map((item) => (
-            <div key={item.label} className="flex items-center gap-2 text-sm sm:text-base">
-              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-slate-200">{item.label}</span>
-              <span className="text-slate-400">₹{(item.value || 0).toFixed(0)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <Layout>
@@ -451,21 +290,41 @@ const Dashboard = () => {
             </div>
 
             <Card>
-              <div className="flex flex-col lg:flex-row gap-6">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-xl font-semibold">Daily revenue trend</h2>
-                    <span className="text-xs text-slate-400">
-                      Range: {filters.start_date} → {filters.end_date}
-                    </span>
-                  </div>
-                  <MiniLineChart data={lineData} />
-                </div>
-                <div className="w-full lg:w-80">
-                  <h2 className="text-xl font-semibold mb-4">Product mix</h2>
-                  <DonutChart data={donutData} />
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-amber-400">Products</p>
+                  <h2 className="text-xl sm:text-2xl font-bold">Product amounts</h2>
+                  <p className="text-xs text-slate-400">All products shown; split across columns</p>
                 </div>
               </div>
+              {(!barData.columns || barData.columns.length === 0) ? (
+                <div className="text-sm text-slate-400">No data for selected range.</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {barData.columns.map((col, colIdx) => (
+                    <div key={colIdx} className="space-y-3">
+                      {col.map((item, idx) => {
+                        const amount = item.totalAmount || 0;
+                        const width = Math.max(4, Math.round((amount / barData.max) * 100));
+                        return (
+                          <div key={`${item.product_id}-${idx}`}>
+                            <div className="flex items-center justify-between text-xs sm:text-sm mb-1">
+                              <span className="truncate pr-2">{item.name_en}</span>
+                              <span className="font-semibold text-amber-300">₹{amount.toFixed(2)}</span>
+                            </div>
+                            <div className={isDark ? 'bg-slate-800 rounded-full h-3' : 'bg-gray-200 rounded-full h-3'}>
+                              <div
+                                className="h-3 rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                                style={{ width: `${width}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
 
             <Card>

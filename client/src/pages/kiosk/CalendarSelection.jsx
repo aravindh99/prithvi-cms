@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import Layout from '../../components/Layout.jsx';
 import Loading from '../../components/Loading.jsx';
 import api from '../../config/api.js';
-import { FaSignOutAlt } from 'react-icons/fa';
+import { FaArrowLeft } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext.jsx';
 
 // Helper to format a JS Date as YYYY-MM-DD using local time (no UTC shift)
@@ -18,7 +18,7 @@ const toLocalDateString = (date) => {
 
 const CalendarSelection = () => {
   const { selectedDates, setSelectedDates, selectedProducts, calculatePerDayTotal, setCurrentOrder } = useOrder();
-  const { logout } = useAuth();
+
   const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [days, setDays] = useState([]);
@@ -28,26 +28,49 @@ const CalendarSelection = () => {
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const { isDark } = useTheme();
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+
 
   useEffect(() => {
     generateCalendarDays();
   }, [currentMonth]);
 
   useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => setRazorpayLoaded(true);
-    document.body.appendChild(script);
+    // Check if Razorpay is already loaded
+    if (window.Razorpay) {
+      setRazorpayLoaded(true);
+      return;
+    }
+
+    // Load Razorpay script only if not already present
+    let script = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('Razorpay script loaded successfully');
+        setRazorpayLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('Failed to load Razorpay script');
+        alert('Payment gateway failed to load. Please refresh the page.');
+      };
+      document.head.appendChild(script);
+    } else {
+      // Script exists, check if Razorpay is available
+      const checkRazorpay = () => {
+        if (window.Razorpay) {
+          setRazorpayLoaded(true);
+        } else {
+          setTimeout(checkRazorpay, 100);
+        }
+      };
+      checkRazorpay();
+    }
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      // Don't remove script on unmount as it might be used by other components
     };
   }, []);
 
@@ -65,9 +88,9 @@ const CalendarSelection = () => {
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
 
-      const isPast = checkDate < today;
+      const isBlocked = isDateBlocked(date);
 
-      if (date.getDay() !== 0 && !isPast) {
+      if (date.getDay() !== 0 && !isBlocked) {
         monthDates.push(toLocalDateString(date));
       }
     }
@@ -75,6 +98,27 @@ const CalendarSelection = () => {
     const allSelected = monthDates.length > 0 && monthDates.every(d => selectedDates.includes(d));
     setSelectAllMonth(allSelected);
   }, [currentMonth, selectedDates]);
+
+  const isDateBlocked = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+
+    // Strictly past dates are always blocked
+    if (checkDate < today) return true;
+
+    // Today is blocked if time is > 10:30 AM
+    if (checkDate.getTime() === today.getTime()) {
+      const now = new Date();
+      // Check if time is > 10:30
+      if (now.getHours() > 10 || (now.getHours() === 10 && now.getMinutes() > 30)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -102,11 +146,10 @@ const CalendarSelection = () => {
 
   const toggleDate = (date) => {
     if (!date) return;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const checkDate = new Date(date);
     checkDate.setHours(0, 0, 0, 0);
-    if (checkDate < today) return; // Prevent selection of past (allow today)
+    // Use unified blocking logic
+    if (isDateBlocked(date)) return;
 
     const dateStr = toLocalDateString(date);
     if (selectedDates.includes(dateStr)) {
@@ -135,14 +178,12 @@ const CalendarSelection = () => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       const checkDate = new Date(date);
       checkDate.setHours(0, 0, 0, 0);
 
-      const isPast = checkDate < today;
+      const isBlocked = isDateBlocked(date);
 
-      if (date.getDay() !== 0 && !isPast) {
+      if (date.getDay() !== 0 && !isBlocked) {
         monthDates.push(toLocalDateString(date));
       }
     }
@@ -171,8 +212,12 @@ const CalendarSelection = () => {
 
   const createOrder = async () => {
     try {
-      setLoading(true);
-      const productIds = selectedProducts.map(p => p.id);
+      const productIds = selectedProducts.flatMap(p =>
+        Array(p.quantity || 1).fill(p.id)
+      );
+
+      console.log('Creating order with:', { productIds, selectedDates });
+
       const response = await api.post('/orders', {
         product_ids: productIds,
         selected_dates: selectedDates,
@@ -186,32 +231,42 @@ const CalendarSelection = () => {
     } catch (error) {
       console.error('Create order error:', error);
       alert('Failed to create order. Please try again.');
-      return null;
-    } finally {
       setLoading(false);
+      return null;
     }
   };
 
   const handlePaymentInitiation = async () => {
+    if (selectedProducts.length === 0) {
+      alert('Please select at least one product');
+      navigate('/kiosk/products');
+      return;
+    }
+
     if (selectedDates.length === 0) {
       alert('Please select at least one date');
       return;
     }
 
-    const orderId = await createOrder();
-    if (!orderId) return;
-
+    // Check Razorpay availability first to avoid creating order unnecessarily
     if (!razorpayLoaded) {
-      alert('Payment gateway is loading. Please wait...');
-      await cancelPendingOrder(orderId);
-      setOrderId(null);
+      alert('Payment gateway is still loading. Please wait a moment and try again.');
       return;
     }
 
+    setLoading(true);
+
     try {
-      setLoading(true);
+      // Create order and Razorpay order in parallel for faster processing
+      const orderId = await createOrder();
+      if (!orderId) return;
+
+      console.log('Order created successfully:', orderId);
+
       const response = await api.post(`/orders/${orderId}/create-razorpay-order`);
       const { order_id, amount, key } = response.data;
+
+      console.log('Razorpay order created:', order_id);
 
       const options = {
         key: key,
@@ -266,6 +321,9 @@ const CalendarSelection = () => {
         }
       };
 
+      // Clear loading state before opening Razorpay
+      setLoading(false);
+
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error) {
@@ -308,7 +366,16 @@ const CalendarSelection = () => {
       <div className={`min-h-screen p-2 sm:p-2.5 md:p-3 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
         <div className="max-w-2xl mx-auto space-y-3 sm:space-y-3.5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <h1 className="text-base sm:text-lg font-bold">Select Dates</h1>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/kiosk/products')}
+                className={`px-3 py-1.5 text-sm font-semibold rounded-lg hover:translate-y-[-1px] transition-colors flex items-center gap-2 ${isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  }`}
+              >
+                <FaArrowLeft /> Back
+              </button>
+              <h1 className="text-base sm:text-lg font-bold">Select Dates</h1>
+            </div>
             <div className="flex gap-2 w-full sm:w-auto">
               {/* <button
                 onClick={handleLogout}
@@ -318,11 +385,11 @@ const CalendarSelection = () => {
               </button> */}
               <button
                 onClick={handleContinue}
-                disabled={selectedDates.length === 0}
+                disabled={selectedDates.length === 0 || loading}
                 className={`flex-1 sm:flex-none px-3 sm:px-3.5 py-1.5 sm:py-2 text-sm font-semibold rounded-lg hover:translate-y-[-1px] transition-colors ${isDark ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 disabled:bg-slate-700' : 'bg-blue-600 text-white hover:bg-blue-700'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                Continue ({selectedDates.length} days)
+                {loading ? 'Processing...' : `Continue (${selectedDates.length} days)`}
               </button>
             </div>
           </div>
@@ -353,7 +420,7 @@ const CalendarSelection = () => {
                   onChange={handleToggleSelectAll}
                   className="!min-h-0 !min-w-0 w-7 h-7 appearance-none border border-gray-300 rounded checked:bg-amber-400 cursor-pointer"
                 />
-                <span>Select all (except Sundays)</span>
+                <span>Select all </span>
               </label>
             </div>
 
@@ -374,10 +441,10 @@ const CalendarSelection = () => {
                 const checkDate = new Date(date);
                 checkDate.setHours(0, 0, 0, 0);
 
-                // Disable if Sunday OR if date is strictly in the past (allow today)
-                const isPast = checkDate < today;
+                // Disable if Sunday OR if date is blocked (past or today > 10:30 AM)
+                const isBlocked = isDateBlocked(date);
                 const sunday = isSunday(date);
-                const isDisabled = sunday || isPast;
+                const isDisabled = sunday || isBlocked;
                 const selected = isDateSelected(date);
 
                 return (

@@ -6,6 +6,7 @@ import Loading from '../../components/Loading.jsx';
 import ThemeToggle from '../../components/ThemeToggle.jsx';
 import prithviLogo from '../../assets/prithvi_logo.png';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import xtownWhiteLogo from '../../assets/X-white-logo.png';
 
 const AdminLogin = () => {
   const [username, setUsername] = useState('');
@@ -39,9 +40,8 @@ const AdminLogin = () => {
   return (
     <Layout showFooter={false} showThemeToggle={false}>
       <div
-        className={`min-h-screen flex items-center justify-center p-4 sm:p-6 ${
-          isDark ? 'bg-slate-950' : 'bg-slate-100'
-        }`}
+        className={`min-h-screen flex items-center justify-center p-4 sm:p-6 ${isDark ? 'bg-slate-950' : 'bg-slate-100'
+          }`}
       >
         <div className="relative w-full max-w-5xl shadow-2xl rounded-3xl overflow-hidden border border-white/10 bg-slate-900/60 backdrop-blur-lg">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-indigo-600/10 to-emerald-500/10 pointer-events-none" />
@@ -56,9 +56,9 @@ const AdminLogin = () => {
               <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/70" />
               <div className="relative h-full flex flex-col justify-between p-6 sm:p-8">
                 <div className="flex items-center gap-3">
-                  <img src={prithviLogo} alt="Prithvi" className="h-12 w-12 rounded-full shadow-lg" />
-                  <div className="text-white">
-                    <p className="text-xs uppercase tracking-[0.2em] opacity-80">Prithvi CMS</p>
+                 
+                  <div className="text-white flex flex-col gap-4">
+                     <div className="flex items-center gap-2"><img src={xtownWhiteLogo} alt="XTOWN" className="h-12 w-12 rounded-full shadow-lg" /><span>TOWN</span></div>
                     <p className="text-lg font-semibold">Admin Control</p>
                   </div>
                 </div>
@@ -68,24 +68,34 @@ const AdminLogin = () => {
                     Operate with Clarity
                   </h2>
                   <p className="text-slate-100/80 text-sm sm:text-base max-w-sm">
-                    Review orders, track products, and monitor payments with confidence on any screen size.
+                    Review orders, track products, and monitor payments.
                   </p>
                 </div>
               </div>
             </div>
 
             <div
-              className={`relative p-6 sm:p-8 md:p-10 ${
-                isDark ? 'bg-slate-950/80 text-slate-100' : 'bg-white text-slate-900'
-              }`}
+              className={`relative p-6 sm:p-8 md:p-10 ${isDark ? 'bg-slate-950/80 text-slate-100' : 'bg-white text-slate-900'
+                }`}
             >
               <div className="flex items-center justify-between mb-6 sm:mb-8">
-                <div>
+                {/* <div className="flex flex-col gap-2 items-start">
+                  <img
+                    src={isDark ? xtownWhiteLogo : xtownDarkLogo}
+                    alt="XTOWN"
+                    className="h-6"
+                  />
                   <p className="text-xs uppercase tracking-[0.2em] text-emerald-400">Admin Access</p>
-                  <h1 className="text-2xl sm:text-3xl font-bold">Login</h1>
-                  <p className="text-sm text-slate-400 mt-1">Enter your admin credentials</p>
+                </div> */}
+                <div className="text-right">
+                  
+            
+                  <img
+                    src={prithviLogo}
+                    alt="Prithvi"
+                    className="h-10 w-24 rounded-lg shadow-md mt-2 ml-auto"
+                  />
                 </div>
-                <img src={prithviLogo} alt="Prithvi" className="h-12 w-auto sm:h-14 sm:w-14 rounded-full border border-white/10 shadow-lg" />
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
@@ -132,7 +142,7 @@ const AdminLogin = () => {
               <div className="mt-6 flex items-center justify-between text-sm text-slate-400">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />
-                  <span>Protected admin portal</span>
+                  <span>Admin portal</span>
                 </div>
                 <button
                   onClick={() => navigate('/login')}

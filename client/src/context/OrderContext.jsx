@@ -26,22 +26,34 @@ export const OrderProvider = ({ children }) => {
     setCurrentOrder(null);
   };
 
-  const addProduct = (product) => {
-    if (!selectedProducts.find(p => p.id === product.id)) {
-      setSelectedProducts([...selectedProducts, product]);
-    }
+  const adjustProductQuantity = (product, delta) => {
+    setSelectedProducts((prev) => {
+      const existing = prev.find((p) => p.id === product.id);
+      if (!existing && delta > 0) {
+        return [...prev, { ...product, quantity: 1 }];
+      }
+      if (!existing) return prev;
+
+      const nextQty = (existing.quantity || 1) + delta;
+      if (nextQty <= 0) {
+        return prev.filter((p) => p.id !== product.id);
+      }
+      return prev.map((p) => (p.id === product.id ? { ...p, quantity: nextQty } : p));
+    });
   };
 
-  const removeProduct = (productId) => {
-    setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
-  };
-
-  const toggleProduct = (product) => {
-    if (selectedProducts.find(p => p.id === product.id)) {
-      removeProduct(product.id);
-    } else {
-      addProduct(product);
-    }
+  const setProductQuantity = (product, quantity) => {
+    const qty = Math.max(0, Math.floor(quantity || 0));
+    setSelectedProducts((prev) => {
+      const existing = prev.find((p) => p.id === product.id);
+      if (qty === 0) {
+        return prev.filter((p) => p.id !== product.id);
+      }
+      if (!existing) {
+        return [...prev, { ...product, quantity: qty }];
+      }
+      return prev.map((p) => (p.id === product.id ? { ...p, quantity: qty } : p));
+    });
   };
 
   const toggleDate = (date) => {
@@ -60,7 +72,10 @@ export const OrderProvider = ({ children }) => {
   };
 
   const calculatePerDayTotal = () => {
-    return selectedProducts.reduce((sum, product) => sum + parseFloat(product.price), 0);
+    return selectedProducts.reduce(
+      (sum, product) => sum + (product.quantity || 1) * parseFloat(product.price),
+      0
+    );
   };
 
   const calculateGrandTotal = () => {
@@ -76,9 +91,8 @@ export const OrderProvider = ({ children }) => {
       setSelectedDates,
       currentOrder,
       setCurrentOrder,
-      addProduct,
-      removeProduct,
-      toggleProduct,
+      adjustProductQuantity,
+      setProductQuantity,
       toggleDate,
       resetOrder,
       calculatePerDayTotal,

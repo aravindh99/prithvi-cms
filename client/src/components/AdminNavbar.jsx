@@ -53,14 +53,7 @@ const AdminNavbar = () => {
     <nav className={`${navBg} backdrop-blur-lg shadow-md sticky top-0 z-50`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <img
-              src={prithviLogo}
-              alt="Prithvi"
-              className="h-10 sm:h-12 rounded-full border border-white/10 shadow-lg"
-              style={{ aspectRatio: '2.8 / 1', width: 'auto' }}
-            />
-          </div>
+          
 
           <div className="hidden lg:flex items-center gap-2">
             {navItems.map((item) => {
@@ -80,7 +73,7 @@ const AdminNavbar = () => {
             })}
 
             <div className={`ml-4 pl-4 border-l ${divider} flex items-center gap-4`}>
-              <span className="text-sm opacity-80 hidden xl:inline">Welcome, {user?.username}</span>
+          
               <button onClick={handleLogout} className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${logoutBtn}`}>
                 <FaSignOutAlt /> <span className="hidden xl:inline">Logout</span>
               </button>

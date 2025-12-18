@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
         as: 'unit',
         attributes: ['id', 'name', 'code']
       }],
-      order: [['createdAt', 'DESC']]
+      order: [['name_en', 'ASC']]
     });
 
     res.json(products);

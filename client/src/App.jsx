@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { OrderProvider } from './context/OrderContext.jsx';
@@ -148,6 +149,20 @@ const AppRoutes = () => {
 };
 
 function App() {
+  useEffect(() => {
+    // Disable context menu (right-click menu) for kiosk mode
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
